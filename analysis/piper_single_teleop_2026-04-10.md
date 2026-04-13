@@ -298,3 +298,52 @@ Verification:
   - local third-party source drops under `source/curl-7.75.0/` and `source/librealsense/`
 
 This is intended to keep the working tree focused on source, scripts, docs, and analysis rather than generated artifacts.
+
+## Dual-Arm Runtime Snapshot After Re-Binding
+
+Latest dual-arm checks show a split result:
+
+- serial-side mapping recovered
+  - `/dev/ttyUSB50` and `/dev/ttyUSB51` now exist as symlinks
+  - `/joint_states_gripper_l` has publisher `/serial_gripper_imu_l`
+  - `/joint_states_gripper_r` has publisher `/serial_gripper_imu_r`
+
+- fisheye camera mapping is still wrong
+  - `s2` repeatedly reports missing `/dev/video51`
+  - current system state does not provide `/dev/video50` or `/dev/video51`
+  - current visible symlinks are `/dev/video60 -> video11` and `/dev/video61 -> video22`
+  - `sensor_fisheye.rules` still expects:
+    - `video50` for `KERNELS=="2-2.2:1.0"`
+    - `video51` for `KERNELS=="2-4.2:1.0"`
+
+Interpretation:
+
+- the serial/gripper input path recovered after USB re-binding
+- the remaining `s2` failure is now concentrated in fisheye camera udev mapping
+- this means the phrase “夹爪没有映射” is no longer accurate for the current snapshot; the serial side is present, but the fisheye side still fails
+
+Dual-arm teleop consequences:
+
+- `s3` nodes for left and right teleop, IK, and FK are up
+- `/teleop_trigger_l` and `/teleop_trigger_r` exist
+- but reliable dual-arm remote operation still depends on valid left/right pose input and successful per-side triggering
+- if one side has broken fisheye/localization input, that side can remain unusable even when joint-state topics exist
+
+Additional tooling added:
+
+- `scripts/lowfreq_dual_piper_monitor.py`
+- `scripts/monitor_dual_piper_lowfreq_tmux.bash`
+- `docs/tmux双臂遥操监控说明.md`
+
+These provide low-frequency left/right monitoring for:
+
+- `/piper_FK_l/urdf_end_pose_orient`
+- `/piper_IK_l/ctrl_end_pose`
+- `/piper_FK_r/urdf_end_pose_orient`
+- `/piper_IK_r/ctrl_end_pose`
+- `/joint_states_gripper_l`
+- `/joint_states_gripper_r`
+- `/teleop_status_l`
+- `/teleop_status_r`
+- `/arm_control_status_l`
+- `/arm_control_status_r`

@@ -99,3 +99,34 @@
   - Evidence source:
     - `git -C /home/piper/pika_ros status --short --branch`
     - `git -C /home/piper/pika_ros check-ignore -v build devel install logs/jitter_runs scripts/__pycache__ scripts/start_sensor_gripper.bash.bak scripts/setup_device.py.bak`
+
+- Updated `AGENT-READ.md`.
+  - Reason: enforce a standing workflow rule that every future modification must be logged, reflected in analysis, checked against `.gitignore`, and committed to Git.
+  - Evidence source: user explicitly requested a repository rule for future changes and commit discipline.
+
+- Added `scripts/lowfreq_dual_piper_monitor.py`.
+  - Reason: provide a low-frequency dual-arm monitor for left/right FK, CTRL, gripper, and teleop status without changing runtime code.
+  - Evidence source: user requested a dual-hand version of the existing monitor tooling.
+
+- Added `scripts/monitor_dual_piper_lowfreq_tmux.bash`.
+  - Reason: launch the dual-arm low-frequency monitor in tmux with dedicated left/right trigger panes.
+  - Evidence source: user requested startup instructions for a dual-hand monitor.
+
+- Added `docs/tmux双臂遥操监控说明.md`.
+  - Reason: document how to read the dual-arm monitor and how to distinguish left/right failures.
+  - Evidence source: current dual-arm topic graph and user request.
+
+- Recorded latest dual-arm runtime diagnosis in analysis.
+  - Reason: after re-binding USB, serial mapping recovered but fisheye camera mapping still points to missing `/dev/video50` and `/dev/video51`.
+  - Evidence source:
+    - `tmux capture-pane -pt s2-2:0.0 -S -260`
+    - `ls -l /dev/ttyUSB* /dev/video50 /dev/video51`
+    - `cat /etc/udev/rules.d/sensor_fisheye.rules`
+    - `v4l2-ctl --list-devices`
+    - `rostopic info /joint_states_gripper_l`
+    - `rostopic info /joint_states_gripper_r`
+
+- Verified syntax and executability for the dual-arm monitor tools.
+  - Evidence source:
+    - `python3 -m py_compile /home/piper/pika_ros/scripts/lowfreq_dual_piper_monitor.py`
+    - `bash -n /home/piper/pika_ros/scripts/monitor_dual_piper_lowfreq_tmux.bash`

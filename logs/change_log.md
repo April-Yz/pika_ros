@@ -174,3 +174,24 @@
   - Reason: document that `start_dual_piper_tmux.bash` now creates independent sessions and add the cleanup command.
   - Evidence source:
     - current behavior of `scripts/start_dual_piper_tmux.bash`
+
+- Updated `src/PikaAnyArm/piper/pika_remote_piper/scripts/teleop_piper_publish.py`.
+  - Reason: user requested concrete debug output while `s4` is stuck in `wait`, instead of only printing the word `wait`.
+  - Evidence source:
+    - current `s4` pane only prints repeated `wait`
+    - current runtime shows localization failures and zero right-hand pose, but the teleop node did not expose that cause
+
+- Updated `install/share/pika_remote_piper/scripts/teleop_piper_publish.py`.
+  - Reason: runtime currently launches the installed script, so the same wait-debug output must exist in the active installed copy.
+  - Evidence source:
+    - live roslaunch uses installed package scripts under `install/share`
+
+- Updated `analysis/piper_single_teleop_2026-04-10.md`.
+  - Reason: record the latest dual-arm failure mode where both localization status topics were inaccurate and `s4` remained in `wait`.
+  - Evidence source:
+    - `tmux capture-pane -pt s4-26`
+    - `tmux capture-pane -pt s2-2`
+    - `rostopic echo /pika_localization_status_l`
+    - `rostopic echo /pika_localization_status_r`
+    - `rostopic echo /pika_pose_l`
+    - `rostopic echo /pika_pose_r`

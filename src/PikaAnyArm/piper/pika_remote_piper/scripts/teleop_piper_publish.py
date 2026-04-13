@@ -83,15 +83,47 @@ class RosOperator:
 
         self.status_srv = None
         self.status = False
+        self.last_wait_debug_time = 0.0
         
         # 存储当前关节位置
         self.current_joint_positions = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         # 标记是否已获取到当前关节位置
         self.joint_positions_received = False
+        self.last_localization_pose = None
+        self.last_arm_end_pose = None
         
         self.init_ros()
 
+    @staticmethod
+    def _pose_is_zero(msg):
+        position = msg.pose.position
+        orientation = msg.pose.orientation
+        values = [
+            position.x, position.y, position.z,
+            orientation.x, orientation.y, orientation.z, orientation.w,
+        ]
+        return all(abs(v) < 1e-6 for v in values[:-1]) and abs(values[-1] - 1.0) < 1e-6
+
+    def wait_debug_message(self):
+        reasons = []
+        if self.refresh_localization_pose:
+            reasons.append("未锁存初始定位位姿")
+        if self.refresh_arm_end_pose:
+            reasons.append("未锁存机械臂末端 FK")
+        if self.last_localization_pose is None:
+            reasons.append("未收到 /pika_pose")
+        elif self._pose_is_zero(self.last_localization_pose):
+            reasons.append("/pika_pose 为零位姿，定位可能未建立")
+        if self.last_arm_end_pose is None:
+            reasons.append("未收到 /piper_FK/urdf_end_pose_orient")
+        if not self.joint_positions_received:
+            reasons.append("未收到 /joint_states_gripper 当前关节状态")
+        if not reasons:
+            reasons.append("等待新的定位位姿或 FK 刷新完成")
+        return " | ".join(reasons)
+
     def localization_pose_callback(self, msg):
+        self.last_localization_pose = msg
         roll, pitch, yaw = euler_from_quaternion((msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w))
         matrix = create_transformation_matrix(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z, roll, pitch, yaw)
         if self.refresh_localization_pose:
@@ -118,6 +150,7 @@ class RosOperator:
             self.teleop_status_publisher.publish(status_msg)
 
     def arm_end_pose_callback(self, msg):
+        self.last_arm_end_pose = msg
         roll, pitch, yaw = euler_from_quaternion((msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w))
         matrix = create_transformation_matrix(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z, roll, pitch, yaw)
         if self.refresh_arm_end_pose:
@@ -142,7 +175,14 @@ class RosOperator:
                 status_msg = TeleopStatus()
                 status_msg.quit = False
                 status_msg.fail = True
-                print("wait")
+                now = rospy.Time.now().to_sec()
+                if now - self.last_wait_debug_time >= 1.0:
+                    debug_msg = self.wait_debug_message()
+                    rospy.logwarn(f"[teleop{self.args.index_name}] wait: {debug_msg}")
+                    print(f"wait: {debug_msg}")
+                    self.last_wait_debug_time = now
+                else:
+                    print("wait")
                 self.teleop_status_publisher.publish(status_msg)
             rate.sleep()
 

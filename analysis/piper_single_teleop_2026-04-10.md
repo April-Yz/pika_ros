@@ -371,3 +371,33 @@ Confirmed:
 Still a runtime hypothesis:
 
 - Dual-arm failures remain primarily split between right-hand localization quality and teleop state transitions, not launcher absence.
+
+## 2026-04-13 Wait-State Debug Update
+
+Confirmed from live runtime evidence:
+
+- Current left-hand teleop failure is not a CAN-side startup symptom.
+- `s4` is stuck printing `wait`, while `s2` simultaneously prints repeated localization volatility warnings.
+- Both `/pika_localization_status_l` and `/pika_localization_status_r` were observed as `accurate: False` in the failing run.
+- `/pika_pose_l` still publishes a non-zero pose, but `/pika_pose_r` falls back to the zero pose.
+- In this state, teleop does not progress to `start` because localization/FK initialization is not considered stable enough.
+
+Implemented debugging support:
+
+- `teleop_piper_publish.py` now prints explicit wait reasons instead of only `wait`.
+- The wait diagnostics distinguish:
+  - missing initial localization pose latch
+  - missing initial FK latch
+  - missing `/pika_pose`
+  - zero `/pika_pose`
+  - missing `/piper_FK/urdf_end_pose_orient`
+  - missing `/joint_states_gripper`
+
+Runtime evidence source:
+
+- `tmux capture-pane -pt s4-26`
+- `tmux capture-pane -pt s2-2`
+- `rostopic echo /pika_localization_status_l`
+- `rostopic echo /pika_localization_status_r`
+- `rostopic echo /pika_pose_l`
+- `rostopic echo /pika_pose_r`

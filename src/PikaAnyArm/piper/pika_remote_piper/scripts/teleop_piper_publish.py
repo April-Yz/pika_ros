@@ -13,6 +13,7 @@ import threading
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 from std_srvs.srv import Trigger, TriggerRequest, TriggerResponse
 from data_msgs.msg import TeleopStatus
+from data_msgs.msg import LocalizationStatus
 from sensor_msgs.msg import JointState
 
 
@@ -91,6 +92,8 @@ class RosOperator:
         self.joint_positions_received = False
         self.last_localization_pose = None
         self.last_arm_end_pose = None
+        self.localization_accurate = None
+        self.last_runtime_debug_time = 0.0
         
         self.init_ros()
 
@@ -130,6 +133,18 @@ class RosOperator:
             self.refresh_localization_pose = False
             self.localization_pose_matrix = matrix
         if self.arm_end_pose_matrix is not None and self.status:
+            now = rospy.Time.now().to_sec()
+            if now - self.last_runtime_debug_time >= 1.0:
+                runtime_reasons = []
+                if self.localization_accurate is False:
+                    runtime_reasons.append("定位状态 inaccurate")
+                if self._pose_is_zero(msg):
+                    runtime_reasons.append("/pika_pose 为零位姿")
+                if runtime_reasons:
+                    debug_msg = " | ".join(runtime_reasons)
+                    rospy.logwarn(f"[teleop{self.args.index_name}] active input warning: {debug_msg}")
+                    print(f"active input warning: {debug_msg}")
+                self.last_runtime_debug_time = now
             pose_xyzrpy = matrix_to_xyzrpy(np.dot(self.arm_end_pose_matrix, np.dot(np.linalg.inv(self.localization_pose_matrix), matrix)))
             pose_msg = PoseStamped()
             pose_msg.header = Header()
@@ -156,6 +171,9 @@ class RosOperator:
         if self.refresh_arm_end_pose:
             self.refresh_arm_end_pose = False
             self.arm_end_pose_matrix = matrix
+
+    def localization_status_callback(self, msg):
+        self.localization_accurate = msg.accurate
 
     def status_changing(self):
         self.refresh_localization_pose = True
@@ -216,6 +234,7 @@ class RosOperator:
         rospy.init_node(f'teleop_piper_publisher{self.args.index_name}', anonymous=True)
         self.args.index_name = rospy.get_param('~index_name', default="")
         self.localization_pose_subscriber = rospy.Subscriber(f'/pika_pose{self.args.index_name}', PoseStamped, self.localization_pose_callback, queue_size=1)
+        rospy.Subscriber(f'/pika_localization_status{self.args.index_name}', LocalizationStatus, self.localization_status_callback, queue_size=1)
         self.arm_end_pose_subscriber = rospy.Subscriber(f'/piper_FK{self.args.index_name}/urdf_end_pose_orient', PoseStamped, self.arm_end_pose_callback, queue_size=1)
         self.arm_end_pose_ctrl_publisher = rospy.Publisher(f'/piper_IK{self.args.index_name}/ctrl_end_pose', PoseStamped, queue_size=1)
         self.teleop_status_publisher = rospy.Publisher(f'/teleop_status{self.args.index_name}', TeleopStatus, queue_size=1)

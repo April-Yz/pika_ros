@@ -401,3 +401,32 @@ Runtime evidence source:
 - `rostopic echo /pika_localization_status_r`
 - `rostopic echo /pika_pose_l`
 - `rostopic echo /pika_pose_r`
+
+## 2026-04-13 Right-Hand Trigger Follow-up
+
+Confirmed from a later runtime after left teleop recovered:
+
+- `/teleop_trigger_r` does switch `teleop_r` into the active state.
+- `/teleop_status_r` stays at `fail=False, quit=False`.
+- `/piper_IK_r/ctrl_end_pose`, `/joint_states_r`, `/joint_states_single_r`, and `/arm_control_status_r` all continue to publish.
+- The right-hand failure is upstream of IK execution:
+  - `/pika_localization_status_r` remains `accurate: False`
+  - `/pika_pose_r` remains the zero pose
+- This explains why RViz and the right-arm control chain can still show activity while real right-hand teleoperation remains incorrect: downstream nodes are alive, but the teleop input pose is invalid.
+
+Added more debug output:
+
+- While teleop is active, the node now prints warnings when:
+  - localization status is inaccurate
+  - `/pika_pose` is still the zero pose
+
+Runtime evidence source:
+
+- `tmux capture-pane -pt s4-26`
+- `tmux capture-pane -pt s2-2`
+- `rostopic echo /teleop_status_r`
+- `rostopic echo /pika_localization_status_r`
+- `rostopic echo /pika_pose_r`
+- `rostopic echo /piper_IK_r/ctrl_end_pose`
+- `rostopic echo /joint_states_r`
+- `rostopic echo /joint_states_single_r`

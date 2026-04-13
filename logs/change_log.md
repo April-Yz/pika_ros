@@ -195,3 +195,24 @@
     - `rostopic echo /pika_localization_status_r`
     - `rostopic echo /pika_pose_l`
     - `rostopic echo /pika_pose_r`
+
+- Updated `src/PikaAnyArm/piper/pika_remote_piper/scripts/teleop_piper_publish.py` again.
+  - Reason: user requested debugging for the case where right-hand trigger succeeds but right-hand teleoperation still does not work.
+  - Evidence source:
+    - `/teleop_status_r` showed active state
+    - `/pika_localization_status_r` remained inaccurate
+    - `/pika_pose_r` remained the zero pose
+
+- Updated `install/share/pika_remote_piper/scripts/teleop_piper_publish.py` again.
+  - Reason: keep the active installed runtime copy aligned with the new right-hand debug output.
+  - Evidence source:
+    - runtime uses installed scripts from `install/share`
+
+- Updated `analysis/piper_single_teleop_2026-04-10.md` again.
+  - Reason: record the later right-hand failure mode where trigger succeeded but the teleop input pose stayed invalid.
+  - Evidence source:
+    - `tmux capture-pane -pt s4-26`
+    - `tmux capture-pane -pt s2-2`
+    - `rostopic echo /teleop_status_r`
+    - `rostopic echo /pika_localization_status_r`
+    - `rostopic echo /pika_pose_r`

@@ -1,0 +1,300 @@
+# Piper Single Teleop Analysis - 2026-04-10
+
+## Scope
+
+User reported:
+
+- `start_sensor_gripper.bash` stage reports many issues.
+- gripper motion can synchronize.
+- arm position does not synchronize.
+- manual `source ~/pika_ros/install/setup.bash` in `zsh` prints `/home/piper/setup.sh` missing.
+
+## Git State Snapshot
+
+Top-level workspace `~/pika_ros` is not clean.
+
+Modified:
+
+- `scripts/setup_device.py`
+- `scripts/setup_multi_gripper.bash`
+- `scripts/setup_multi_sensor.bash`
+- `scripts/setup_sensor_gripper.bash`
+- `scripts/start_multi_gripper.bash`
+- `scripts/start_multi_sensor.bash`
+- `scripts/start_sensor_gripper.bash`
+- `scripts/start_single_sensor.bash`
+
+Untracked highlights:
+
+- `.catkin_workspace`
+- `build/`
+- `devel/`
+- `install/`
+- `src/PikaAnyArm/`
+- several `*.bak` files
+
+Sub-repo `~/pika_ros/src/PikaAnyArm/piper/piper_ros` is clean on `master...origin/master`.
+
+## Confirmed Findings
+
+### 1. `setup.bash` error is a shell mismatch, not the main teleop failure
+
+`~/pika_ros/install/setup.bash` uses `BASH_SOURCE[0]`. When sourced from `zsh`, it resolves relative to the current directory and tries to source `/home/piper/setup.sh`.
+
+Confirmed by file contents:
+
+- `install/setup.bash`
+- `install/setup.zsh`
+
+Conclusion:
+
+- in `zsh`, use `source ~/pika_ros/install/setup.zsh`
+- in `bash`, use `source ~/pika_ros/install/setup.bash`
+
+### 2. CAN side is not the primary blocker
+
+`teleop_rand_single_piper.launch` starts:
+
+- `piper_ctrl_single_node`
+- `piper_FK`
+- `piper_IK`
+- `teleop_piper`
+
+Observed logs show:
+
+- arm auto-enable changes from `False` to `True`
+- `piper_ctrl_single_node` starts normally
+- `piper_IK` subscribes to `/piper_IK/ctrl_end_pose`
+- `teleop_piper` advertises `/teleop_trigger` and `/teleop_status`
+
+This means the arm-side ROS graph comes up.
+
+### 3. Gripper sync can work even when teleop pose sync is not active
+
+The wiring is:
+
+- `piper_ctrl_single_node` subscribes to `/joint_states_gripper`
+- `/joint_states_gripper` is published by `sensor_serial_gripper_imu`
+- it merges `/joint_states_single` with the sensor-side gripper distance as joint 7
+
+Therefore:
+
+- gripper motion can synchronize through the topic bridge,
+- even if pose teleop has not actually started.
+
+This explains the user symptom: gripper moves, arm position does not.
+
+### 4. Pose teleop depends on two extra conditions
+
+`teleop_piper_publish.py` only publishes `/piper_IK/ctrl_end_pose` when:
+
+- `/teleop_trigger` has toggled teleop state to active
+- both initial reference frames are captured:
+  - `/pika_pose`
+  - `/piper_FK/urdf_end_pose_orient`
+
+If teleop is not active, or if `/pika_pose` is unavailable/unstable, no arm target pose is published.
+
+### 5. Sensor stack has runtime instability
+
+Observed runtime evidence from ROS logs:
+
+- `gripper/camera/realsense2_camera_manager` reports `failed to set power state`
+- `sensor_camera_fisheye-3` repeatedly dies and respawns
+
+These errors are consistent with localization instability or degraded sensor input.
+If localization is unstable, `/pika_pose` may exist as a topic but still be unusable for teleop.
+
+### 6. Latest live check: teleop target is produced, but IK rejects it
+
+Live ROS checks in the running session showed:
+
+- `/pika_pose` publishes at about 149 Hz
+- `/pika_localization_status` reports `accurate: True`
+- after calling `rosservice call /teleop_trigger "{}"`, `/teleop_status` publishes `fail: False`, `quit: False`
+- `/piper_IK/ctrl_end_pose` publishes continuously
+- `/arm_control_status` publishes only `over_limit: True`
+- `/joint_states_gripper` does not publish during this state
+
+Interpretation:
+
+- teleop trigger is working
+- localization topic exists and is marked accurate
+- the arm still does not move because `piper_IK` rejects every target before joint commands are forwarded to `/joint_states_gripper`
+
+### 7. High-confidence code-level risk in IK seeding
+
+`piper_IK.py` subscribes to `/joint_states_single`, but its call into the solver is:
+
+- `self.arm_ik.ik_fun(target.homogeneous, msg.pose.orientation.w)`
+
+It does not pass current joint state as the initial guess, even though `ik_fun()` accepts a `motorstate` argument.
+
+This means the optimizer starts from its internal default state instead of the real current arm configuration.
+When the real arm is already away from the nominal pose, the solver can fail or hit self-collision checks even for targets near the current end pose.
+
+Supporting evidence:
+
+- current FK pose and current target pose are nearly identical in Cartesian position and Euler orientation
+- despite that, `/arm_control_status` stays `over_limit: True`
+
+This strongly suggests a solver-seeding or collision-check issue, not a missing topic issue.
+
+## High-Probability Root Causes
+
+### A. Teleop trigger was not actually latched on
+
+The code toggles teleop through `/teleop_trigger`, normally driven by a double-click event from `serial_gripper_imu`.
+If the double-click is not recognized, the arm will not publish pose commands.
+
+Why this is plausible:
+
+- user sees no arm motion change after launch,
+- gripper sync alone does not prove teleop active,
+- current logs do not show direct evidence that `/piper_IK/ctrl_end_pose` is receiving live pose messages.
+
+### B. `/pika_pose` localization is unhealthy
+
+The locator node exists, but sensor-side camera failures were logged.
+Teleop requires a stable localization pose stream.
+
+Why this is plausible:
+
+- `pika_single_locator` publishes `/pika_pose`,
+- but RealSense and fisheye errors were recorded in the same session,
+- missing or unstable pose would block arm position sync while leaving gripper sync intact.
+
+### C. IK receives no valid target, or target solving is rejected
+
+`piper_IK.py` rejects solutions when Cartesian error exceeds thresholds:
+
+- `diffX > 0.3`
+- `diffY > 0.3`
+- `diffZ > 0.3`
+
+If the incoming target pose is bad, stale, or uninitialized, IK can refuse to publish usable arm commands.
+
+### D. IK solver is seeded incorrectly for the real current arm pose
+
+This is now a stronger hypothesis than before.
+
+Why this is plausible:
+
+- `piper_IK.py` has access to `/joint_states_single`
+- but does not pass that state into `ik_fun()`
+- target pose is close to current FK pose
+- yet the solver still reports `over_limit`
+
+This pattern is consistent with solver initialization or self-collision rejection from a bad initial guess.
+
+## Recommended Runtime Checks
+
+Run in the active ROS session after launching both sensor and piper sides:
+
+1. `source ~/pika_ros/install/setup.zsh`
+2. `rostopic hz /pika_pose`
+3. `rostopic echo -n 1 /pika_localization_status`
+4. `rostopic echo -n 1 /teleop_status`
+5. manually trigger once: `rosservice call /teleop_trigger "{}"`
+6. `rostopic echo -n 3 /piper_IK/ctrl_end_pose`
+7. `rostopic echo -n 3 /arm_control_status`
+8. `rostopic echo -n 3 /joint_states_gripper`
+
+Interpretation:
+
+- if `/teleop_status` stays fail or quit, teleop never armed
+- if `/pika_pose` has no stable output, localization is the blocker
+- if `/piper_IK/ctrl_end_pose` stays empty after trigger, teleop publisher is not producing targets
+- if `/arm_control_status` reports over-limit, IK is rejecting or clamping targets
+
+## Live Evidence Snapshot
+
+- Current FK pose:
+  - position about `x=0.2211, y=-0.0111, z=0.0797`
+  - Euler about `roll=0.3821, pitch=0.4028, yaw=-0.0690`
+- Current teleop target sample:
+  - position about `x=0.2205, y=-0.0109, z=0.0790`
+  - Euler fields about `roll=0.3821, pitch=0.4075, yaw=-0.0684`
+
+These values are close, so a persistent `over_limit` is unlikely to be caused by a large Cartesian mismatch alone.
+
+## Relevant Files
+
+- `scripts/start_sensor_gripper.bash`
+- `src/sensor_tools/launch/open_sensor_gripper.launch`
+- `src/sensor_tools/src/serial_gripper_imu.cpp`
+- `src/PikaAnyArm/piper/pika_remote_piper/scripts/teleop_piper_publish.py`
+- `src/PikaAnyArm/piper/pika_remote_piper/scripts/piper_IK.py`
+- `src/PikaAnyArm/piper/pika_remote_piper/scripts/piper_FK.py`
+- `src/PikaAnyArm/piper/piper_ros/piper/scripts/piper_ctrl_single_node.py`
+
+## Relevant Runtime Logs
+
+- `/home/piper/.ros/log/8322e2ba-34bd-11f1-b02f-c9c9e99447b8/roslaunch-Compineter-3194706.log`
+- `/home/piper/.ros/log/8322e2ba-34bd-11f1-b02f-c9c9e99447b8/roslaunch-Compineter-3193444.log`
+- `/home/piper/.ros/log/8322e2ba-34bd-11f1-b02f-c9c9e99447b8/master.log`
+- `/home/piper/.ros/log/8322e2ba-34bd-11f1-b02f-c9c9e99447b8/teleop_piper-4.log`
+- `/home/piper/.ros/log/8322e2ba-34bd-11f1-b02f-c9c9e99447b8/rosout.log`
+
+## Documentation And Monitoring Notes
+
+- The low-frequency tmux monitor `piper-low` should be interpreted as:
+  - `pose`: current FK pose, current teleop-to-IK target pose, and their difference
+  - `gripper`: sense-side gripper opening and merged control opening
+  - `status`: localization state, teleop state, and IK over-limit state
+  - `trigger`: manual teleop trigger helper
+
+- The correct topic to inspect when asking “what pose IK wants to reach” is:
+  - `/piper_IK/ctrl_end_pose`
+  - This is an EE pose target, not a joint-angle command.
+
+- The low-frequency monitor was corrected so that CTRL orientation is displayed as true Euler `roll pitch yaw`, matching the FK display and avoiding quaternion-field mislabeling.
+
+## Added Jitter Diagnosis Tooling
+
+To separate localization jitter from teleop/IK jitter and execution jitter, a second set of tools was added:
+
+- `scripts/single_piper_jitter_probe.py`
+  - Online 1 Hz probe for:
+    - `/pika_pose`
+    - `/piper_IK/ctrl_end_pose`
+    - `/piper_FK/urdf_end_pose_orient`
+    - `/sensor/gripper/joint_state`
+    - `/joint_states_single_gripper`
+    - `/joint_states_single`
+  - Reports message age, estimated frequency, receive-interval jitter, and step size between consecutive frames.
+
+- `scripts/monitor_single_piper_jitter_tmux.bash`
+  - tmux launcher combining:
+    - pose probe
+    - gripper probe
+    - raw `rostopic hz`
+    - existing low-frequency status monitor
+    - a record helper pane
+
+- `scripts/record_single_piper_debug.bash`
+  - Records a rosbag plus `rosnode list`, `rostopic list`, and `rostopic info` snapshots for the key topics.
+
+Interpretation guidance encoded in the new doc:
+
+- if `/pika_pose` itself has large step sizes or interval jitter, the likely source is the sense/localization side
+- if `/pika_pose` is stable but `/piper_IK/ctrl_end_pose` jumps, the likely source is teleop mapping, trigger state, or IK-side behavior
+- if `/piper_IK/ctrl_end_pose` is smooth but `/piper_FK/urdf_end_pose_orient` or `/joint_states_single` is unstable or lagging, the likely source is the execution side
+
+Verification:
+
+- `python3 -m py_compile /home/piper/pika_ros/scripts/single_piper_jitter_probe.py`
+- `bash -n /home/piper/pika_ros/scripts/monitor_single_piper_jitter_tmux.bash`
+- `bash -n /home/piper/pika_ros/scripts/record_single_piper_debug.bash`
+
+## Repository Hygiene Notes
+
+- A repository-level `.gitignore` was added so routine workspace outputs do not dominate `git status`.
+- The ignore rules now cover:
+  - `build/`, `devel/`, `install/`
+  - Python cache directories and `*.pyc`
+  - local `*.bak`
+  - rosbag outputs and `logs/jitter_runs/`
+  - local third-party source drops under `source/curl-7.75.0/` and `source/librealsense/`
+
+This is intended to keep the working tree focused on source, scripts, docs, and analysis rather than generated artifacts.

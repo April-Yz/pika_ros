@@ -1,0 +1,23 @@
+.vscode/
+
+# ROS catkin generated outputs
+.catkin_workspace
+build/
+devel/
+install/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local backup files
+*.bak
+
+# Runtime logs and recordings
+logs/jitter_runs/
+*.bag
+*.active
+
+# Third-party source drops
+source/curl-7.75.0/
+source/librealsense/

@@ -351,18 +351,22 @@ These provide low-frequency left/right monitoring for:
 
 - Added a one-command dual-arm tmux launcher plan:
   - `scripts/start_dual_piper_tmux.bash`
-  - Purpose: create `s1/s2/s3/s4` in one session and include CAN startup in `s1`.
+  - Purpose: create independent `s1/s2/s3/s4` tmux sessions and include CAN startup in `s1`.
 - Added a detailed dual-arm tmux monitor plan:
   - `scripts/monitor_dual_piper_tmux.bash`
   - Purpose: separate low-frequency summaries from raw localization, target, output, and feedback windows.
 - Added a low-frequency linked-view helper:
   - `scripts/open_dual_piper_low_view.bash`
   - Purpose: avoid manual `tmux new-session -t piper-dual-low ...` when viewing different windows in parallel.
+- Added a dual-arm tmux cleanup helper:
+  - `scripts/cleanup_dual_piper_tmux.bash`
+  - Purpose: stop the current dual-arm runtime and monitor tmux sessions before rebuilding them.
 
 Confirmed:
 
 - Existing `piper-jitter`, `piper-low`, and `piper-mon` are single-arm oriented and should not be the default tools for dual-arm debugging.
 - The existing `monitor_dual_piper_lowfreq_tmux.bash` remains useful as the lightweight base session for dual-arm work.
+- Independent tmux sessions are the correct shape for `s1/s2/s3/s4` because they can be attached in parallel from different terminals without sharing a selected window.
 
 Still a runtime hypothesis:
 

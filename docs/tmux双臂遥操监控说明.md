@@ -5,6 +5,8 @@
 - `scripts/monitor_dual_piper_lowfreq_tmux.bash`
 - `scripts/monitor_dual_piper_tmux.bash`
 - `scripts/open_dual_piper_low_view.bash`
+- `scripts/start_dual_piper_tmux.bash`
+- `scripts/cleanup_dual_piper_tmux.bash`
 
 适用场景：
 
@@ -13,6 +15,34 @@
 - 需要低频观察，不想看高频 `rostopic echo`
 
 ## 一、怎么启动
+
+### 0. 一键启动双臂运行 sessions
+
+```bash
+bash /home/piper/pika_ros/scripts/start_dual_piper_tmux.bash
+```
+
+这会直接创建 4 个独立 tmux session，不是同一个 session 下的 4 个 window：
+
+- `dual-s1`
+- `dual-s2`
+- `dual-s3`
+- `dual-s4`
+
+所以它们可以同时在不同终端单独 attach：
+
+```bash
+tmux attach -t dual-s1
+tmux attach -t dual-s2
+tmux attach -t dual-s3
+tmux attach -t dual-s4
+```
+
+如果你需要先清理旧的双臂运行/监控 tmux：
+
+```bash
+bash /home/piper/pika_ros/scripts/cleanup_dual_piper_tmux.bash
+```
 
 ### 1. 低频监控
 

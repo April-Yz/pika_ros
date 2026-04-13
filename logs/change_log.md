@@ -158,3 +158,19 @@
   - Reason: document the new one-command low-view flow, the detailed dual-arm monitor, and clarify that older single-arm tmux sessions are not the recommended tools for dual-arm debugging.
   - Evidence source:
     - current monitor scripts under `scripts/`
+
+- Updated `scripts/start_dual_piper_tmux.bash`.
+  - Reason: user asked for `s1/s2/s3/s4` to be independent so they can be opened simultaneously in different terminals.
+  - Evidence source:
+    - prior implementation created one tmux session with four windows
+    - tmux window selection sharing is not appropriate for the requested workflow
+
+- Added `scripts/cleanup_dual_piper_tmux.bash`.
+  - Reason: user requested a simple cleanup helper for the dual-arm runtime and monitor tmux sessions.
+  - Evidence source:
+    - current set of dual-arm runtime sessions and monitor sessions under tmux
+
+- Updated `docs/tmux双臂遥操监控说明.md` again.
+  - Reason: document that `start_dual_piper_tmux.bash` now creates independent sessions and add the cleanup command.
+  - Evidence source:
+    - current behavior of `scripts/start_dual_piper_tmux.bash`

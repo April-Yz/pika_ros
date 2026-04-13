@@ -67,32 +67,50 @@ def run_pose():
 
 
 def run_gripper():
-    state = {"joint_l": None, "joint_r": None}
+    state = {"sensor_l": None, "sensor_r": None, "device_l": None, "device_r": None}
 
-    def cb_l(msg):
+    def cb_sensor_l(msg):
         if len(msg.position) >= 7:
-            state["joint_l"] = msg.position[6]
+            state["sensor_l"] = msg.position[6]
 
-    def cb_r(msg):
+    def cb_sensor_r(msg):
         if len(msg.position) >= 7:
-            state["joint_r"] = msg.position[6]
+            state["sensor_r"] = msg.position[6]
+
+    def cb_device_l(msg):
+        if len(msg.position) >= 7:
+            state["device_l"] = msg.position[6]
+
+    def cb_device_r(msg):
+        if len(msg.position) >= 7:
+            state["device_r"] = msg.position[6]
 
     rospy.init_node("lowfreq_dual_gripper_monitor", anonymous=True)
-    rospy.Subscriber("/joint_states_gripper_l", JointState, cb_l, queue_size=1)
-    rospy.Subscriber("/joint_states_gripper_r", JointState, cb_r, queue_size=1)
+    rospy.Subscriber("/joint_states_gripper_l", JointState, cb_sensor_l, queue_size=1)
+    rospy.Subscriber("/joint_states_gripper_r", JointState, cb_sensor_r, queue_size=1)
+    rospy.Subscriber("/joint_states_single_gripper_l", JointState, cb_device_l, queue_size=1)
+    rospy.Subscriber("/joint_states_single_gripper_r", JointState, cb_device_r, queue_size=1)
 
     rate = rospy.Rate(1)
     while not rospy.is_shutdown():
         print("=" * 96)
         print("双臂低频夹爪监控 1 Hz")
-        if state["joint_l"] is None:
-            print("LEFT  gripper: 无数据")
+        if state["sensor_l"] is None:
+            print("LEFT  sensor->arm gripper : 无数据")
         else:
-            print("LEFT  gripper: {:.4f} m".format(state["joint_l"]))
-        if state["joint_r"] is None:
-            print("RIGHT gripper: 无数据")
+            print("LEFT  sensor->arm gripper : {:.4f} m".format(state["sensor_l"]))
+        if state["device_l"] is None:
+            print("LEFT  gripper device      : 无数据")
         else:
-            print("RIGHT gripper: {:.4f} m".format(state["joint_r"]))
+            print("LEFT  gripper device      : {:.4f} m".format(state["device_l"]))
+        if state["sensor_r"] is None:
+            print("RIGHT sensor->arm gripper : 无数据")
+        else:
+            print("RIGHT sensor->arm gripper : {:.4f} m".format(state["sensor_r"]))
+        if state["device_r"] is None:
+            print("RIGHT gripper device      : 无数据")
+        else:
+            print("RIGHT gripper device      : {:.4f} m".format(state["device_r"]))
         sys.stdout.flush()
         rate.sleep()
 

@@ -37,6 +37,9 @@ run_window "$SESSION_NAME:gripper" "/usr/bin/python3 /home/piper/pika_ros/script
 tmux new-window -t "$SESSION_NAME" -n status
 run_window "$SESSION_NAME:status" "/usr/bin/python3 /home/piper/pika_ros/scripts/lowfreq_dual_piper_monitor.py status"
 
+tmux new-window -t "$SESSION_NAME" -n hz
+run_window "$SESSION_NAME:hz" "rostopic hz /pika_pose_l /pika_pose_r /piper_IK_l/ctrl_end_pose /piper_IK_r/ctrl_end_pose /joint_states_gripper_l /joint_states_gripper_r /joint_states_single_gripper_l /joint_states_single_gripper_r"
+
 tmux new-window -t "$SESSION_NAME" -n trigger_l
 run_window "$SESSION_NAME:trigger_l" "printf '左臂触发 teleop:\\n  rosservice call /teleop_trigger_l \"{}\"\\n'; bash"
 

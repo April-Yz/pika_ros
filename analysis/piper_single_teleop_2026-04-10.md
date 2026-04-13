@@ -347,3 +347,23 @@ These provide low-frequency left/right monitoring for:
 - `/teleop_status_r`
 - `/arm_control_status_l`
 - `/arm_control_status_r`
+## 2026-04-13 Tooling Update
+
+- Added a one-command dual-arm tmux launcher plan:
+  - `scripts/start_dual_piper_tmux.bash`
+  - Purpose: create `s1/s2/s3/s4` in one session and include CAN startup in `s1`.
+- Added a detailed dual-arm tmux monitor plan:
+  - `scripts/monitor_dual_piper_tmux.bash`
+  - Purpose: separate low-frequency summaries from raw localization, target, output, and feedback windows.
+- Added a low-frequency linked-view helper:
+  - `scripts/open_dual_piper_low_view.bash`
+  - Purpose: avoid manual `tmux new-session -t piper-dual-low ...` when viewing different windows in parallel.
+
+Confirmed:
+
+- Existing `piper-jitter`, `piper-low`, and `piper-mon` are single-arm oriented and should not be the default tools for dual-arm debugging.
+- The existing `monitor_dual_piper_lowfreq_tmux.bash` remains useful as the lightweight base session for dual-arm work.
+
+Still a runtime hypothesis:
+
+- Dual-arm failures remain primarily split between right-hand localization quality and teleop state transitions, not launcher absence.

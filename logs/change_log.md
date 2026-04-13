@@ -130,3 +130,31 @@
   - Evidence source:
     - `python3 -m py_compile /home/piper/pika_ros/scripts/lowfreq_dual_piper_monitor.py`
     - `bash -n /home/piper/pika_ros/scripts/monitor_dual_piper_lowfreq_tmux.bash`
+
+- Updated the dual-arm monitor to match the four-terminal runtime workflow.
+  - Reason: user clarified that the intended dual-arm setup runs both `start_multi_sensor.bash sensor` and `start_multi_gripper.bash gripper sensor`, so the monitor needed to distinguish sensor-side gripper control from gripper-device-side output.
+  - Evidence source:
+    - source inspection of `open_multi_sensor.launch`
+    - source inspection of `open_multi_gripper.launch`
+    - runtime topic naming for `/joint_states_gripper_l/r` and `/joint_states_single_gripper_l/r`
+
+- Added `scripts/start_dual_piper_tmux.bash`.
+  - Reason: user requested a one-command tmux launcher that creates and runs `s1/s2/s3/s4`, including CAN startup before `roscore`.
+  - Evidence source:
+    - current dual-arm startup workflow from the user
+    - source inspection of `src/PikaAnyArm/piper/piper_ros/can_config.sh`
+
+- Added `scripts/monitor_dual_piper_tmux.bash`.
+  - Reason: user requested a more detailed dual-arm monitor beyond the low-frequency summary view.
+  - Evidence source:
+    - current dual-arm topic graph for localization, target pose, command output, and joint feedback
+
+- Added `scripts/open_dual_piper_low_view.bash`.
+  - Reason: user requested a simple way to open another `piper-dual-low` tmux view without manually creating linked sessions.
+  - Evidence source:
+    - current tmux behavior where multiple clients attached to the same session share the selected window
+
+- Updated `docs/tmux双臂遥操监控说明.md`.
+  - Reason: document the new one-command low-view flow, the detailed dual-arm monitor, and clarify that older single-arm tmux sessions are not the recommended tools for dual-arm debugging.
+  - Evidence source:
+    - current monitor scripts under `scripts/`

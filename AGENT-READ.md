@@ -11,6 +11,24 @@ If you modify anything, you must do all of the following:
    - what was confirmed,
    - what is still only a hypothesis,
    - what runtime evidence supports the conclusion.
+4. Review whether any newly created runtime files, caches, recordings, archives, or generated outputs should be ignored.
+   - If they are not suitable for version control, add a precise rule to `.gitignore` before committing.
+5. Make a Git commit for the change set after the logs and analysis are updated.
+   - The commit message should match the actual content of the change.
+   - Do not leave code edits uncommitted unless the user explicitly wants a dirty working tree.
+
+Workflow rule for every future modification:
+
+- change code or docs
+- update `logs/change_log.md`
+- update the latest relevant file under `analysis/`
+- update `.gitignore` if new non-source artifacts appear
+- commit the change set to Git
+
+Repository focus for routine tracking:
+
+- prefer tracking `src/`, `scripts/`, `docs/`, `analysis/`, `logs/`, and root config files
+- avoid tracking generated ROS workspace outputs, caches, bag files, backup files, and bulky third-party drops unless there is a specific reason
 
 Current debugging focus:
 

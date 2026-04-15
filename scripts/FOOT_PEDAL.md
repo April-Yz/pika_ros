@@ -96,6 +96,15 @@ source ~/pika_ros/install/setup.zsh
 - 自动调用 `/data_tools_dataCapture/capture_service`
 - 自动从当前最大 `episode` 后面继续编号
 
+如果直接访问输入设备时报权限错误，可以直接用：
+
+```bash
+sudo /usr/bin/python3 ~/pika_ros/scripts/foot_pedal_capture_toggle.py \
+  --dataset-dir ~/agilex/data
+```
+
+当前脚本已经内置 ROS Python 路径补全，所以即使直接用上面这条 `sudo` 命令，也能正常导入 `rospy`。
+
 ## 日志观察
 
 脚本日志会打印：

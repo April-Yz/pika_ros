@@ -9,8 +9,24 @@ import sys
 import time
 from pathlib import Path
 
-import rospy
-from data_msgs.srv import CaptureService, CaptureServiceRequest
+def _bootstrap_ros_python():
+    candidates = [
+        "/opt/ros/noetic/lib/python3/dist-packages",
+        str(Path.home() / "pika_ros" / "install" / "lib" / "python3" / "dist-packages"),
+        str(Path.home() / "pika_ros" / "devel" / "lib" / "python3" / "dist-packages"),
+    ]
+    for candidate in candidates:
+        if os.path.isdir(candidate) and candidate not in sys.path:
+            sys.path.append(candidate)
+
+
+try:
+    import rospy
+    from data_msgs.srv import CaptureService, CaptureServiceRequest
+except ModuleNotFoundError:
+    _bootstrap_ros_python()
+    import rospy
+    from data_msgs.srv import CaptureService, CaptureServiceRequest
 
 
 EV_KEY = 0x01

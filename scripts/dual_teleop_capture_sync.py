@@ -21,6 +21,7 @@ class DualTeleopCaptureSync:
         self.last_not_both_active_at = None
         self.capture_srv = None
         self.next_episode = self._find_next_episode(args.dataset_dir)
+        self.next_retry_at = 0.0
 
     @staticmethod
     def _find_next_episode(dataset_dir):
@@ -56,29 +57,65 @@ class DualTeleopCaptureSync:
         req.instructions = self.args.instructions
         return self.capture_srv(req)
 
+    def _can_retry(self, now):
+        return now >= self.next_retry_at
+
+    def _delay_retry(self, now):
+        self.next_retry_at = now + self.args.retry_sec
+
     def start_recording(self):
         if self.recording:
-            return
+            return True
         rospy.loginfo(
-            "Starting capture for episode%d because both teleop states are active.",
+            "Both teleop sides are active. Requesting capture start for episode%d.",
             self.next_episode,
         )
-        res = self._call_capture(True, False, self.next_episode)
+        try:
+            res = self._call_capture(True, False, self.next_episode)
+        except Exception as exc:
+            rospy.logwarn(
+                "Capture start request failed: %s. Sync monitor will keep running and retry in %.1fs.",
+                exc,
+                self.args.retry_sec,
+            )
+            return False
         if not res.success:
-            rospy.logerr("Failed to start capture: %s", res.message)
-            return
+            rospy.logwarn(
+                "Capture start was rejected: %s. Sync monitor will keep running and retry in %.1fs.",
+                res.message,
+                self.args.retry_sec,
+            )
+            return False
         self.recording = True
         self.next_episode += 1
+        self.next_retry_at = 0.0
+        rospy.loginfo("Capture start accepted. Recording is now active.")
+        return True
 
     def stop_recording(self):
         if not self.recording:
-            return
-        rospy.loginfo("Stopping capture because dual teleop is no longer jointly active.")
-        res = self._call_capture(False, True, -1)
+            return True
+        rospy.loginfo("Dual teleop is no longer jointly active. Requesting capture stop.")
+        try:
+            res = self._call_capture(False, True, -1)
+        except Exception as exc:
+            rospy.logwarn(
+                "Capture stop request failed: %s. Assuming recorder is unavailable and keeping sync monitor alive.",
+                exc,
+            )
+            self.recording = False
+            return False
         if not res.success:
-            rospy.logerr("Failed to stop capture: %s", res.message)
-            return
+            rospy.logwarn(
+                "Capture stop was rejected: %s. Sync monitor will continue running.",
+                res.message,
+            )
+            self.recording = False
+            return False
         self.recording = False
+        self.next_retry_at = 0.0
+        rospy.loginfo("Capture stop accepted. Recording is now inactive.")
+        return True
 
     def run(self):
         rospy.init_node("dual_teleop_capture_sync", anonymous=True)
@@ -101,8 +138,9 @@ class DualTeleopCaptureSync:
                 self.last_not_both_active_at = None
                 if self.last_both_active_at is None:
                     self.last_both_active_at = now
-                if (not self.recording) and now - self.last_both_active_at >= self.args.stable_sec:
-                    self.start_recording()
+                if (not self.recording) and now - self.last_both_active_at >= self.args.stable_sec and self._can_retry(now):
+                    if not self.start_recording():
+                        self._delay_retry(now)
             else:
                 self.last_both_active_at = None
                 if self.last_not_both_active_at is None:
@@ -119,6 +157,7 @@ def parse_args():
     parser.add_argument("--dataset-dir", default=os.path.expanduser("~/agilex/data"))
     parser.add_argument("--instructions", default="[null]")
     parser.add_argument("--stable-sec", type=float, default=0.3)
+    parser.add_argument("--retry-sec", type=float, default=2.0)
     return parser.parse_args()
 
 

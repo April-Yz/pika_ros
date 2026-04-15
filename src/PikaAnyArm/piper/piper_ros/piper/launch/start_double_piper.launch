@@ -17,7 +17,6 @@
       <param name="mode" value="$(arg mode)" />
       <param name="auto_enable" value="$(arg auto_enable)" />
       <remap from="/puppet/joint_states" to="/joint_states_single_r" />
-      <remap from="/master/joint_states" to="joint_states_gripper_r" />
+      <remap from="/master/joint_states" to="/joint_states_gripper_r" />
     </node>
 </launch>
-

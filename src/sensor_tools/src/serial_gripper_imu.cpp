@@ -91,6 +91,7 @@ bool find_json(std::string &msg, int &start, int &end){
 class RosOperator{
 	public:
 	bool isGripper = false;
+	bool autoCaptureOnCommand = true;
 	std::string msg;
 	std::string serialPort;
 	boost::asio::io_context io_context;
@@ -191,6 +192,7 @@ class RosOperator{
     RosOperator(){
 		nh = new ros::NodeHandle("~");
 		nh->param<std::string>("serial_port", serialPort, "/dev/ttyUSB0");
+		nh->param<bool>("auto_capture_on_command", autoCaptureOnCommand, true);
 		nh->param<float>("motor_current_limit", motorCurrentLimit, 1000);
 		nh->param<float>("motor_current_redundancy", motorCurrentRedundancy, 500);
 		nh->param<float>("ctrl_rate", ctrlRate, 50);
@@ -839,13 +841,15 @@ class RosOperator{
 								command = root["Command"].asInt();
 								std_srvs::Trigger teleop_srv;
 								client_arm_teleop.call(teleop_srv);
-								data_msgs::CaptureService srv;
-								srv.request.dataset_dir = "";
-								srv.request.episode_index = -1;
-								srv.request.instructions = "[null]";
-								srv.request.start = true;
-								srv.request.end = true;
-								client.call(srv);
+								if(autoCaptureOnCommand){
+									data_msgs::CaptureService srv;
+									srv.request.dataset_dir = "";
+									srv.request.episode_index = -1;
+									srv.request.instructions = "[null]";
+									srv.request.start = true;
+									srv.request.end = true;
+									client.call(srv);
+								}
 							}
 						}
 					}catch(Json::LogicError e){

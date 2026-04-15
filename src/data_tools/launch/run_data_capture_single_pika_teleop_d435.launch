@@ -1,0 +1,92 @@
+<launch>
+
+    <arg name="project" default="data_tools"/>
+    <arg name="useService" default="true"/>
+    <arg name="episodeIndex" default="0"/>
+    <arg name="datasetDir" default="/home/agilex/data"/>
+    <arg name="instructions" default="[null]"/>
+    <arg name="hz" default="20"/>
+    <arg name="timeout" default="2"/>
+    <arg name="cropTime" default="1"/>
+
+    <arg name="d435_name" default="externalD435"/>
+    <arg name="d435_frame" default="d435_color_optical_frame"/>
+    <arg name="d435_color_topic" default="/d435/color/image_raw"/>
+    <arg name="d435_color_info_topic" default="/d435/color/camera_info"/>
+
+    <rosparam subst_value="true">
+      dataInfo:
+        camera:
+          color:
+            names: ['pikaGripperDepthCamera', 'pikaGripperFisheyeCamera', '$(arg d435_name)']
+            parentFrames: ['gripper/camera_link', 'gripper/camera_fisheye_link', '$(arg d435_frame)']
+            topics: ['/gripper/camera/color/image_raw', '/gripper/camera_fisheye/color/image_raw', '$(arg d435_color_topic)']
+            configTopics: ['/gripper/camera/color/camera_info', '/gripper/camera_fisheye/color/camera_info', '$(arg d435_color_info_topic)']
+          depth:
+            names: ['pikaGripperDepthCamera']
+            parentFrames: ['gripper/camera_link']
+            topics: ['/gripper/camera/aligned_depth_to_color/image_raw']
+            configTopics: ['/gripper/camera/aligned_depth_to_color/camera_info']
+          pointCloud:
+            names: []
+            parentFrames: []
+            topics: []
+            configTopics: []
+            maxDistances: []
+            downSizes: []
+        arm:
+          jointState:
+            names: ['master', 'puppet']
+            topics: ['/joint_states_gripper', '/joint_states_single_gripper']
+          endPose:
+            names: ['master', 'puppet']
+            topics: ['/piper_IK/receive_end_pose_orient', '/piper_FK/urdf_end_pose_orient']
+            orients: [true, true]
+        localization:
+          pose:
+            names: ['pika']
+            topics: ['/pika_pose']
+        gripper:
+          encoder:
+            names: ['pikaSensor', 'pikaGripper']
+            topics: ['/sensor/gripper/data', '/gripper/gripper/data']
+        imu:
+          9axis:
+            names: []
+            topics: []
+        lidar:
+          pointCloud:
+            names: []
+            topics: []
+            xDistanceUppers: []
+            xDistanceLowers: []
+            yDistanceUppers: []
+            yDistanceLowers: []
+            zDistanceUppers: []
+            zDistanceLowers: []
+            downSizes: []
+        robotBase:
+          vel:
+            names: []
+            topics: []
+        lift:
+          motor:
+            names: []
+            topics: []
+            pubTopics: []
+        tf:
+          transform:
+            parentFrames: []
+            childFrames: []
+    </rosparam>
+
+    <param name="useService" value="$(arg useService)"/>
+    <param name="episodeIndex" value="$(arg episodeIndex)"/>
+    <param name="datasetDir" value="$(arg datasetDir)"/>
+    <param name="instructions" value="$(arg instructions)"/>
+    <param name="hz" value="$(arg hz)"/>
+    <param name="timeout" value="$(arg timeout)"/>
+    <param name="cropTime" value="$(arg cropTime)"/>
+
+    <node pkg="$(arg project)" type="$(arg project)_dataCapture" name="$(arg project)_dataCapture" output="screen" required="true"/>
+</launch>

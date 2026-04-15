@@ -10,10 +10,12 @@ import time
 from pathlib import Path
 
 def _bootstrap_ros_python():
+    script_dir = Path(__file__).resolve().parent
+    workspace_dir = script_dir.parent
     candidates = [
         "/opt/ros/noetic/lib/python3/dist-packages",
-        str(Path.home() / "pika_ros" / "install" / "lib" / "python3" / "dist-packages"),
-        str(Path.home() / "pika_ros" / "devel" / "lib" / "python3" / "dist-packages"),
+        str(workspace_dir / "install" / "lib" / "python3" / "dist-packages"),
+        str(workspace_dir / "devel" / "lib" / "python3" / "dist-packages"),
     ]
     for candidate in candidates:
         if os.path.isdir(candidate) and candidate not in sys.path:

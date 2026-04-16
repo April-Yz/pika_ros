@@ -48,8 +48,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dataset-dir",
-        default=os.path.expanduser("~/agilex/data"),
-        help="Dataset root used when episode is given as an index.",
+        default=None,
+        help="Dataset root used when episode is given as an index. Overrides --task-name/--dataset-root.",
+    )
+    parser.add_argument(
+        "--dataset-root",
+        default=os.path.expanduser("~/agilex"),
+        help="Dataset parent root used together with --task-name. Default: ~/agilex",
+    )
+    parser.add_argument(
+        "--task-name",
+        default="data",
+        help="Task subdirectory under --dataset-root. Default: data",
     )
     parser.add_argument(
         "--output",
@@ -101,6 +111,12 @@ def parse_args() -> argparse.Namespace:
         help="Optional camera folder names to keep. Example: myD435 pikaGripperDepthCamera_l",
     )
     return parser.parse_args()
+
+
+def resolve_dataset_dir(args: argparse.Namespace) -> str:
+    if args.dataset_dir:
+        return os.path.expanduser(args.dataset_dir)
+    return os.path.expanduser(os.path.join(args.dataset_root, args.task_name))
 
 
 def resolve_episode_path(episode: str, dataset_dir: str) -> Path:
@@ -333,14 +349,15 @@ def should_skip_render(output_path: Path, overwrite: bool) -> bool:
 
 def main() -> int:
     args = parse_args()
+    dataset_dir = resolve_dataset_dir(args)
     if args.output and len(args.episodes) != 1:
         raise SystemExit("--output can only be used when rendering exactly one episode.")
 
     try:
         if args.episodes:
-            episode_dirs = [resolve_episode_path(episode, args.dataset_dir) for episode in args.episodes]
+            episode_dirs = [resolve_episode_path(episode, dataset_dir) for episode in args.episodes]
         else:
-            episode_dirs = discover_episode_dirs(args.dataset_dir)
+            episode_dirs = discover_episode_dirs(dataset_dir)
     except FileNotFoundError as exc:
         raise SystemExit(str(exc)) from exc
 

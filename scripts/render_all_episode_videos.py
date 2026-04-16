@@ -12,8 +12,18 @@ def parse_args():
     )
     parser.add_argument(
         "--dataset-dir",
-        default=str(Path.home() / "agilex" / "data"),
-        help="Dataset root containing episode directories.",
+        default=None,
+        help="Dataset root containing episode directories. Overrides --task-name/--dataset-root.",
+    )
+    parser.add_argument(
+        "--dataset-root",
+        default=str(Path.home() / "agilex"),
+        help="Dataset parent root used together with --task-name. Default: ~/agilex",
+    )
+    parser.add_argument(
+        "--task-name",
+        default="data",
+        help="Task subdirectory under --dataset-root. Default: data",
     )
     parser.add_argument(
         "--output-name",
@@ -30,6 +40,14 @@ def parse_args():
     return parser.parse_args()
 
 
+
+
+def resolve_dataset_dir(args):
+    if args.dataset_dir:
+        return Path(args.dataset_dir).expanduser()
+    return (Path(args.dataset_root).expanduser() / args.task_name)
+
+
 def episode_sort_key(path: Path):
     suffix = path.name[len("episode") :]
     return (0, int(suffix)) if suffix.isdigit() else (1, path.name)
@@ -43,7 +61,7 @@ def build_command(args, episode_dir: Path):
         str(script),
         str(episode_dir),
         "--dataset-dir",
-        args.dataset_dir,
+        str(resolve_dataset_dir(args)),
         "--output",
         str(output),
         "--fps",
@@ -65,7 +83,7 @@ def build_command(args, episode_dir: Path):
 
 def main():
     args = parse_args()
-    dataset_dir = Path(args.dataset_dir).expanduser()
+    dataset_dir = resolve_dataset_dir(args)
     if not dataset_dir.is_dir():
         raise SystemExit(f"Dataset directory not found: {dataset_dir}")
 

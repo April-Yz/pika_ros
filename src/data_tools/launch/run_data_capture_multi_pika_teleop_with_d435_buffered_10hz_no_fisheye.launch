@@ -1,0 +1,44 @@
+<launch>
+
+    <arg name="serial_no" default="817412070803"/>
+    <arg name="camera_ns" default="camera"/>
+    <arg name="datasetDir" default="/home/agilex/data"/>
+    <arg name="episodeIndex" default="0"/>
+    <arg name="useService" default="true"/>
+    <arg name="instructions" default="[null]"/>
+    <arg name="hz" default="-1"/>
+    <arg name="timeout" default="2"/>
+    <arg name="cropTime" default="1"/>
+
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="serial_no" value="$(arg serial_no)"/>
+        <arg name="camera" value="$(arg camera_ns)"/>
+        <arg name="tf_prefix" value="$(arg camera_ns)"/>
+        <arg name="enable_color" value="true"/>
+        <arg name="enable_depth" value="false"/>
+        <arg name="enable_pointcloud" value="false"/>
+        <arg name="align_depth" value="false"/>
+        <arg name="enable_infra" value="false"/>
+        <arg name="enable_infra1" value="false"/>
+        <arg name="enable_infra2" value="false"/>
+        <arg name="color_width" value="640"/>
+        <arg name="color_height" value="480"/>
+        <arg name="color_fps" value="30"/>
+        <arg name="depth_width" value="640"/>
+        <arg name="depth_height" value="480"/>
+        <arg name="depth_fps" value="30"/>
+    </include>
+
+    <include file="$(find data_tools)/launch/run_data_capture_multi_pika_teleop_d435_buffered_10hz_no_fisheye.launch">
+        <arg name="useService" value="$(arg useService)"/>
+        <arg name="datasetDir" value="$(arg datasetDir)"/>
+        <arg name="episodeIndex" value="$(arg episodeIndex)"/>
+        <arg name="instructions" value="$(arg instructions)"/>
+        <arg name="hz" value="$(arg hz)"/>
+        <arg name="timeout" value="$(arg timeout)"/>
+        <arg name="cropTime" value="$(arg cropTime)"/>
+        <arg name="d435_name" value="myD435"/>
+        <arg name="d435_frame" value="$(arg camera_ns)_color_optical_frame"/>
+        <arg name="d435_color_info_topic" value="/$(arg camera_ns)/color/camera_info"/>
+    </include>
+</launch>

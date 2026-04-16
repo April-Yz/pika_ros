@@ -5,7 +5,7 @@ import datetime as dt
 import json
 import math
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 TOPICS = [
     "/gripper/camera_l/color/image_raw",
@@ -43,7 +43,14 @@ def parse_args():
         description="Summarize and visualize capture_status_hz.log for one episode."
     )
     parser.add_argument("episode", type=int, help="Episode index, e.g. 28")
-    parser.add_argument("--dataset-dir", default=str(Path.home() / "agilex" / "data"))
+    parser.add_argument("--dataset-dir", default=None, help="Dataset root. Overrides --task-name/--dataset-root.")
+    parser.add_argument("--dataset-root", default=str(Path.home() / "agilex"), help="Dataset parent root used together with --task-name.")
+    parser.add_argument("--task-name", default="data", help="Task subdirectory under --dataset-root. Default: data")
+    parser.add_argument(
+        "--status-log-name",
+        default=None,
+        help="Optional capture status log file name under dataset dir. Auto-detects buffered log if omitted.",
+    )
     parser.add_argument(
         "--output-svg",
         default=None,
@@ -52,7 +59,24 @@ def parse_args():
     return parser.parse_args()
 
 
-def parse_capture_window(timing_path: Path) -> Tuple[float, float, dt.datetime, dt.datetime]:
+
+
+def resolve_dataset_dir(args) -> Path:
+    if args.dataset_dir:
+        return Path(args.dataset_dir).expanduser()
+    return Path(args.dataset_root).expanduser() / args.task_name
+
+
+def resolve_status_log(dataset_dir: Path, name: str = None) -> Path:
+    if name:
+        return dataset_dir / name
+    buffered = dataset_dir / "capture_status_hz_buffered_10hz.log"
+    if buffered.exists():
+        return buffered
+    return dataset_dir / "capture_status_hz.log"
+
+
+def parse_capture_window(timing_path: Path) -> Tuple[Optional[float], Optional[float], dt.datetime, dt.datetime]:
     start = None
     end = None
     start_wall = None
@@ -81,24 +105,35 @@ def parse_capture_window(timing_path: Path) -> Tuple[float, float, dt.datetime, 
     return start, end, start_wall, end_wall
 
 
-def load_records(log_path: Path, start: float, end: float, start_wall: dt.datetime, end_wall: dt.datetime) -> List[dict]:
+def load_records(
+    log_path: Path,
+    start: Optional[float],
+    end: Optional[float],
+    start_wall: dt.datetime,
+    end_wall: dt.datetime,
+) -> List[dict]:
     records = []
-    padded_start = None if start is None else start - 3.0
-    padded_end = None if end is None else end + 3.0
+    wall_margin = dt.timedelta(seconds=1.0)
+    start_naive = start_wall.replace(tzinfo=None)
+    end_naive = end_wall.replace(tzinfo=None)
+    padded_start = None if start is None else start - 1.0
+    padded_end = None if end is None else end + 1.0
     for line in log_path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        obj = json.loads(line)
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
         ros_time = float(obj["ros_time"])
         matched = False
-        if padded_start is not None and padded_end is not None and padded_start <= ros_time <= padded_end:
+        wall_time = dt.datetime.fromisoformat(obj["wall_time"])
+        obj["wall_dt"] = wall_time
+
+        if start_naive - wall_margin <= wall_time <= end_naive + wall_margin:
             matched = True
-        else:
-            wall_time = dt.datetime.fromisoformat(obj["wall_time"])
-            start_naive = start_wall.replace(tzinfo=None)
-            end_naive = end_wall.replace(tzinfo=None)
-            if start_naive - dt.timedelta(seconds=3) <= wall_time <= end_naive + dt.timedelta(seconds=3):
-                matched = True
+        elif padded_start is not None and padded_end is not None and padded_start <= ros_time <= padded_end:
+            matched = True
         if matched:
             records.append(obj)
     if not records:
@@ -106,11 +141,11 @@ def load_records(log_path: Path, start: float, end: float, start_wall: dt.dateti
     return records
 
 
-def summarize(records: List[dict]) -> Dict[str, dict]:
+def summarize(records: List[dict], start_wall: dt.datetime) -> Dict[str, dict]:
     topic_data: Dict[str, List[Tuple[float, float]]] = {topic: [] for topic in TOPICS}
-    base_time = float(records[0]["ros_time"])
+    base_wall = start_wall.replace(tzinfo=None)
     for obj in records:
-        rel_time = float(obj["ros_time"]) - base_time
+        rel_time = (obj["wall_dt"] - base_wall).total_seconds()
         for topic, freq in zip(obj["topics"], obj["frequencies"]):
             if topic not in topic_data:
                 continue
@@ -121,32 +156,56 @@ def summarize(records: List[dict]) -> Dict[str, dict]:
         series = topic_data[topic]
         finite = [v for _, v in series if math.isfinite(v)]
         if finite:
+            min_v = min(finite)
+            max_v = max(finite)
             summary[topic] = {
                 "avg": sum(finite) / len(finite),
-                "min": min(finite),
-                "max": max(finite),
+                "min": min_v,
+                "max": max_v,
+                "span": max_v - min_v,
                 "series": series,
             }
         else:
-            summary[topic] = {"avg": math.nan, "min": math.nan, "max": math.nan, "series": series}
+            summary[topic] = {
+                "avg": math.nan,
+                "min": math.nan,
+                "max": math.nan,
+                "span": math.nan,
+                "series": series,
+            }
     return summary
 
 
 def y_transform(freq: float) -> float:
     clipped = max(0.0, min(50.0, freq))
     if clipped <= 15.0:
-        return clipped * 2.0
-    return 30.0 + (clipped - 15.0) * (20.0 / 35.0)
+        return clipped * (36.0 / 15.0)
+    return 36.0 + (clipped - 15.0) * (14.0 / 35.0)
 
 
 def build_svg(summary: Dict[str, dict], duration: float, output_path: Path):
-    width = 1600
+    # Precompute legend text and expand canvas width to avoid clipping long rows.
+    legend_texts = {}
+    max_legend_chars = 0
+    for topic in TOPICS:
+        avg = summary[topic]["avg"]
+        min_v = summary[topic]["min"]
+        max_v = summary[topic]["max"]
+        span = summary[topic]["span"]
+        if math.isfinite(avg):
+            text = f"{TOPIC_LABELS[topic]}: avg {avg:.3f} min {min_v:.3f} max {max_v:.3f} span {span:.3f}"
+        else:
+            text = f"{TOPIC_LABELS[topic]}: no finite data"
+        legend_texts[topic] = text
+        max_legend_chars = max(max_legend_chars, len(text))
+
     height = 900
     left = 100
-    right = 330
+    plot_w = 1170
+    right = max(330, int(max_legend_chars * 8.2) + 80)
+    width = left + plot_w + right
     top = 60
     bottom = 90
-    plot_w = width - left - right
     plot_h = height - top - bottom
 
     def x_px(seconds: float) -> float:
@@ -203,15 +262,8 @@ def build_svg(summary: Dict[str, dict], duration: float, output_path: Path):
     row_y = legend_y + 24
     for topic in TOPICS:
         color = TOPIC_COLORS[topic]
-        label = TOPIC_LABELS[topic]
-        avg = summary[topic]["avg"]
-        min_v = summary[topic]["min"]
-        max_v = summary[topic]["max"]
+        text = legend_texts[topic]
         svg.append(f'<line x1="{legend_x}" y1="{row_y - 6}" x2="{legend_x + 20}" y2="{row_y - 6}" stroke="{color}" stroke-width="4"/>')
-        if math.isfinite(avg):
-            text = f"{label}: avg {avg:.3f} min {min_v:.3f} max {max_v:.3f}"
-        else:
-            text = f"{label}: no finite data"
         svg.append(f'<text x="{legend_x + 28}" y="{row_y}" font-size="13" font-family="monospace" fill="#222">{text}</text>')
         row_y += 22
 
@@ -226,29 +278,33 @@ def print_summary(episode: int, summary: Dict[str, dict]):
         avg = summary[topic]["avg"]
         min_v = summary[topic]["min"]
         max_v = summary[topic]["max"]
+        span = summary[topic]["span"]
         print(f"- {topic} ({label})")
         if math.isfinite(avg):
             print(f"  avg: {avg:.3f} Hz")
             print(f"  min: {min_v:.3f} Hz")
             print(f"  max: {max_v:.3f} Hz")
             print(f"  range: {min_v:.3f} ~ {max_v:.3f} Hz")
+            print(f"  fluctuation: {span:.3f} Hz")
         else:
             print("  avg: NaN")
             print("  min: NaN")
             print("  max: NaN")
             print("  range: NaN")
+            print("  fluctuation: NaN")
 
 
 def main():
     args = parse_args()
-    dataset_dir = Path(args.dataset_dir).expanduser()
+    dataset_dir = resolve_dataset_dir(args)
     episode_dir = dataset_dir / f"episode{args.episode}"
     start, end, start_wall, end_wall = parse_capture_window(episode_dir / "capture_timing.log")
-    records = load_records(dataset_dir / "capture_status_hz.log", start, end, start_wall, end_wall)
-    summary = summarize(records)
+    records = load_records(resolve_status_log(dataset_dir, args.status_log_name), start, end, start_wall, end_wall)
+    summary = summarize(records, start_wall)
     print_summary(args.episode, summary)
     output_svg = Path(args.output_svg).expanduser() if args.output_svg else episode_dir / "hz_summary.svg"
-    build_svg(summary, end - start, output_svg)
+    duration = (end_wall - start_wall).total_seconds()
+    build_svg(summary, max(duration, 1e-6), output_svg)
     print(f"Saved plot to: {output_svg}")
 
 

@@ -47,6 +47,15 @@ class FootPedalCaptureToggle:
         self.device = None
 
     @staticmethod
+    def _banner(title, detail=""):
+        line = "=" * 72
+        print(line, flush=True)
+        print(title, flush=True)
+        if detail:
+            print(detail, flush=True)
+        print(line, flush=True)
+
+    @staticmethod
     def _find_next_episode(dataset_dir):
         dataset_path = Path(dataset_dir).expanduser()
         max_idx = -1
@@ -71,32 +80,40 @@ class FootPedalCaptureToggle:
     def start_recording(self):
         episode = self.next_episode
         rospy.loginfo("Right pedal pressed. Requesting capture start for episode%d.", episode)
+        self._banner("PEDAL: START REQUEST", f"episode{episode}")
         try:
             res = self._call_capture(True, False, episode)
         except Exception as exc:
             rospy.logwarn("Capture start failed: %s", exc)
+            self._banner("PEDAL: START FAILED", str(exc))
             return
         if not res.success:
             rospy.logwarn("Capture start rejected: %s", res.message)
+            self._banner("PEDAL: START REJECTED", res.message)
             return
         self.recording = True
         self.next_episode += 1
         rospy.loginfo("Capture started successfully: episode%d", episode)
+        self._banner("CAPTURE STARTED", f"episode{episode}")
 
     def stop_recording(self):
         rospy.loginfo("Right pedal pressed. Requesting capture stop.")
+        self._banner("PEDAL: STOP REQUEST")
         try:
             res = self._call_capture(False, True, -1)
         except Exception as exc:
             rospy.logwarn("Capture stop failed: %s", exc)
             self.recording = False
+            self._banner("PEDAL: STOP FAILED", str(exc))
             return
         if not res.success:
             rospy.logwarn("Capture stop rejected: %s", res.message)
             self.recording = False
+            self._banner("PEDAL: STOP REJECTED", res.message)
             return
         self.recording = False
         rospy.loginfo("Capture stopped successfully.")
+        self._banner("CAPTURE STOPPED")
 
     def toggle(self):
         if self.recording:
@@ -131,6 +148,10 @@ class FootPedalCaptureToggle:
             "Foot pedal capture toggle ready. Right pedal(KEY_C) toggles start/stop. dataset_dir=%s next_episode=episode%d",
             self.args.dataset_dir,
             self.next_episode,
+        )
+        self._banner(
+            "FOOT PEDAL CAPTURE READY",
+            f"device={self.device}\nright pedal KEY_C toggles capture\nnext episode=episode{self.next_episode}",
         )
 
         while not rospy.is_shutdown():

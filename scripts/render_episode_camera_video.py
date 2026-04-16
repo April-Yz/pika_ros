@@ -34,11 +34,17 @@ class CameraSource:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Render one episode's available camera folders into a stitched overview video."
+        description=(
+            "Render one or more episodes' available camera folders into stitched overview videos."
+        )
     )
     parser.add_argument(
-        "episode",
-        help="Episode path or index. Examples: /home/piper/agilex/data/episode4 or 4",
+        "episodes",
+        nargs="*",
+        help=(
+            "Episode paths or indexes. Examples: /home/piper/agilex/data/episode4 4 7. "
+            "If omitted, all episode directories under --dataset-dir are rendered."
+        ),
     )
     parser.add_argument(
         "--dataset-dir",
@@ -48,7 +54,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         default=None,
-        help="Output video path. Default: <episode>/camera_overview.mp4",
+        help=(
+            "Output video path for a single episode. "
+            "When rendering multiple episodes or all episodes, each episode writes to its own "
+            "camera_overview.mp4 unless --overwrite is used."
+        ),
     )
     parser.add_argument(
         "--fps",
@@ -80,6 +90,11 @@ def parse_args() -> argparse.Namespace:
         help="Also include depth camera folders if they contain image files.",
     )
     parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Re-render even if the output video already exists.",
+    )
+    parser.add_argument(
         "--only",
         nargs="*",
         default=None,
@@ -97,6 +112,16 @@ def resolve_episode_path(episode: str, dataset_dir: str) -> Path:
         if indexed.exists():
             return indexed
     raise FileNotFoundError(f"Episode not found: {episode}")
+
+
+def discover_episode_dirs(dataset_dir: str) -> List[Path]:
+    root = Path(dataset_dir).expanduser()
+    if not root.is_dir():
+        raise FileNotFoundError(f"Dataset directory not found: {root}")
+    return sorted(
+        [path for path in root.iterdir() if path.is_dir() and path.name.startswith("episode")],
+        key=lambda path: (0, int(path.name[len("episode"):])) if path.name[len("episode"):].isdigit() else (1, path.name),
+    )
 
 
 def parse_timestamp(path: Path) -> Optional[float]:
@@ -302,24 +327,80 @@ def render_video(
         writer.release()
 
 
+def should_skip_render(output_path: Path, overwrite: bool) -> bool:
+    return output_path.exists() and not overwrite
+
+
 def main() -> int:
     args = parse_args()
-    episode_dir = resolve_episode_path(args.episode, args.dataset_dir)
-    output_path = Path(args.output).expanduser() if args.output else episode_dir / "camera_overview.mp4"
-    sources = load_sources(episode_dir, include_depth=args.include_depth, only=args.only)
-    render_video(
-        episode_dir=episode_dir,
-        sources=sources,
-        output_path=output_path,
-        fps=args.fps,
-        tile_width=args.tile_width,
-        tile_height=args.tile_height,
-        max_gap=args.max_gap,
-    )
-    print(f"Saved stitched camera video to: {output_path}")
-    print("Included sources:")
-    for source in sources:
-        print(f"  - {source.label}: {len(source.frames)} frames")
+    if args.output and len(args.episodes) != 1:
+        raise SystemExit("--output can only be used when rendering exactly one episode.")
+
+    try:
+        if args.episodes:
+            episode_dirs = [resolve_episode_path(episode, args.dataset_dir) for episode in args.episodes]
+        else:
+            episode_dirs = discover_episode_dirs(args.dataset_dir)
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    seen = set()
+    unique_episode_dirs = []
+    for episode_dir in episode_dirs:
+        if episode_dir in seen:
+            continue
+        seen.add(episode_dir)
+        unique_episode_dirs.append(episode_dir)
+
+    if not unique_episode_dirs:
+        raise SystemExit("No episode directories found to render.")
+
+    rendered = []
+    skipped = []
+    failed = []
+
+    for episode_dir in unique_episode_dirs:
+        output_path = Path(args.output).expanduser() if args.output else episode_dir / "camera_overview.mp4"
+        if should_skip_render(output_path, overwrite=args.overwrite):
+            print(f"[skip] {episode_dir.name}: {output_path.name} already exists")
+            skipped.append(episode_dir.name)
+            continue
+
+        try:
+            sources = load_sources(episode_dir, include_depth=args.include_depth, only=args.only)
+            render_video(
+                episode_dir=episode_dir,
+                sources=sources,
+                output_path=output_path,
+                fps=args.fps,
+                tile_width=args.tile_width,
+                tile_height=args.tile_height,
+                max_gap=args.max_gap,
+            )
+        except Exception as exc:
+            print(f"[fail] {episode_dir.name}: {exc}")
+            failed.append(episode_dir.name)
+            continue
+
+        print(f"[ok]   {episode_dir.name}: {output_path}")
+        print("  Included sources:")
+        for source in sources:
+            print(f"    - {source.label}: {len(source.frames)} frames")
+        rendered.append(episode_dir.name)
+
+    print("\nSummary")
+    print(f"  rendered: {len(rendered)}")
+    print(f"  skipped:  {len(skipped)}")
+    print(f"  failed:   {len(failed)}")
+    if rendered:
+        print("  rendered list:", ", ".join(rendered))
+    if skipped:
+        print("  skipped list:", ", ".join(skipped))
+    if failed:
+        print("  failed list:", ", ".join(failed))
+
+    if failed:
+        return 1
     return 0
 
 

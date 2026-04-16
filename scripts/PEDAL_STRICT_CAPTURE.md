@@ -55,6 +55,8 @@ sudo -E bash ~/pika_ros/scripts/start_foot_pedal_capture_toggle.bash $HOME/agile
   记录脚踏板按下、开始请求、结束请求、服务成功/失败
 - `capture_service.log`
   记录采集服务收到的 start/end 请求
+- `capture_service_requests.log`
+  记录每次 service 调用的 `callerid`、`start`、`end`、`episode_index`、`dataset_dir`、`instructions`
 - `capture_status_hz.log`
   记录 `/data_tools_dataCapture/status` 中每次发布的 `topics`、`count_in_seconds`、`frequencies`、`fail`、`quit`
 

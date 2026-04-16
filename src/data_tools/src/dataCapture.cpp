@@ -1827,6 +1827,7 @@ class DataCaptureService{
     ros::ServiceServer srvDataCapture;
     DataCapture *dataCapture;
     std::string datasetDir;
+    std::string captureServiceRequestLogPath;
     int episodeIndex;
     int hz;
     int timeout;
@@ -1834,6 +1835,7 @@ class DataCaptureService{
 
     DataCaptureService(std::string datasetDir, int episodeIndex, int hz, int timeout, double cropTime) {
         this->datasetDir = datasetDir;
+        this->captureServiceRequestLogPath = datasetDir + "/capture_service_requests.log";
         this->episodeIndex = episodeIndex;
         this->hz = hz;
         this->timeout = timeout;
@@ -1842,8 +1844,39 @@ class DataCaptureService{
         srvDataCapture  = nh.advertiseService("/data_tools_dataCapture/capture_service", &DataCaptureService::captureService, this);
     }
 
-    bool captureService(data_msgs::CaptureServiceRequest& req, data_msgs::CaptureServiceResponse& res)
+    void appendRequestLog(
+        const std::string& caller_id,
+        const data_msgs::CaptureServiceRequest& req,
+        const std::string& stage,
+        const std::string& detail=""
+    ){
+        std::ofstream file(captureServiceRequestLogPath, std::ios::app);
+        file << DataCapture::wallTimeString()
+             << "\t" << ros::Time::now().toSec()
+             << "\t" << stage
+             << "\tcallerid=" << caller_id
+             << "\tstart=" << req.start
+             << "\tend=" << req.end
+             << "\tepisode_index=" << req.episode_index
+             << "\tdataset_dir=" << req.dataset_dir
+             << "\tinstructions=" << req.instructions;
+        if(detail != ""){
+            file << "\t" << detail;
+        }
+        file << std::endl;
+    }
+
+    bool captureService(ros::ServiceEvent<data_msgs::CaptureServiceRequest, data_msgs::CaptureServiceResponse>& event)
     {
+        const auto& req = event.getRequest();
+        auto& res = event.getResponse();
+        std::string caller_id = "unknown";
+        auto header = event.getConnectionHeader();
+        auto it = header.find("callerid");
+        if(it != header.end()){
+            caller_id = it->second;
+        }
+        appendRequestLog(caller_id, req, "request_received", dataCapture == nullptr ? "active_capture=null" : "active_capture=" + dataCapture->episodeDir);
         if(req.start && req.end){
             if(dataCapture != nullptr){
                 // res.success = false;
@@ -1853,6 +1886,7 @@ class DataCaptureService{
 	                delete dataCapture;
 	                dataCapture = nullptr;
 	                res.success = true;
+                    appendRequestLog(caller_id, req, "request_completed", "result=toggle_stop_existing success=1");
             }else{
                 std::string datasetDir = this->datasetDir;
                 int episodeIndex = this->episodeIndex;
@@ -1871,6 +1905,7 @@ class DataCaptureService{
                 dataCapture->instructionSaving(req.instructions);
                 dataCapture->run();
                 res.success = true;
+                appendRequestLog(caller_id, req, "request_completed", "result=toggle_start_new success=1 episodeDir=" + dataCapture->episodeDir);
             }
         }else{
             if(req.start){
@@ -1900,6 +1935,7 @@ class DataCaptureService{
                     dataCapture->instructionSaving(req.instructions);
                     dataCapture->run();
                     res.success = true;
+                    appendRequestLog(caller_id, req, "request_completed", "result=start_new success=1 episodeDir=" + dataCapture->episodeDir);
                 // }
             }else if(req.end){
 	                if(dataCapture != nullptr){
@@ -1910,8 +1946,10 @@ class DataCaptureService{
                     dataCapture = nullptr;
                     res.success = true;
                     std::cout<<"wait for start signal"<<std::endl;
+                    appendRequestLog(caller_id, req, "request_completed", "result=end_existing success=1");
                 }else{
                     res.success = false;
+                    appendRequestLog(caller_id, req, "request_completed", "result=end_existing success=0");
                 }
             }
         }

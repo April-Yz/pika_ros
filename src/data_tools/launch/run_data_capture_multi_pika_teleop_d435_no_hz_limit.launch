@@ -1,0 +1,31 @@
+<launch>
+
+    <arg name="project" default="data_tools"/>
+    <arg name="useService" default="true"/>
+    <arg name="episodeIndex" default="0"/>
+    <arg name="datasetDir" default="/home/agilex/data"/>
+    <arg name="instructions" default="[null]"/>
+    <arg name="hz" default="-1"/>
+    <arg name="timeout" default="2"/>
+    <arg name="cropTime" default="1"/>
+
+    <arg name="d435_name" default="externalD435"/>
+    <arg name="d435_frame" default="d435_color_optical_frame"/>
+    <arg name="d435_color_topic" default="/d435/color/image_raw"/>
+    <arg name="d435_color_info_topic" default="/d435/color/camera_info"/>
+
+    <include file="$(find data_tools)/launch/run_data_capture_multi_pika_teleop_d435.launch">
+        <arg name="project" value="$(arg project)"/>
+        <arg name="useService" value="$(arg useService)"/>
+        <arg name="episodeIndex" value="$(arg episodeIndex)"/>
+        <arg name="datasetDir" value="$(arg datasetDir)"/>
+        <arg name="instructions" value="$(arg instructions)"/>
+        <arg name="hz" value="$(arg hz)"/>
+        <arg name="timeout" value="$(arg timeout)"/>
+        <arg name="cropTime" value="$(arg cropTime)"/>
+        <arg name="d435_name" value="$(arg d435_name)"/>
+        <arg name="d435_frame" value="$(arg d435_frame)"/>
+        <arg name="d435_color_topic" value="$(arg d435_color_topic)"/>
+        <arg name="d435_color_info_topic" value="$(arg d435_color_info_topic)"/>
+    </include>
+</launch>

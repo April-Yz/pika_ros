@@ -14,6 +14,7 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 #include <fstream>
+#include <ctime>
 #include <sensor_msgs/Imu.h>
 #include <data_msgs/Gripper.h>
 #include <data_msgs/CaptureService.h>
@@ -42,7 +43,9 @@ public:
     std::vector<ros::Subscriber> subRobotBaseVels;
     std::vector<ros::Subscriber> subLiftMotors;
 
-    ros::Publisher pubCaptureStatus;
+	    ros::Publisher pubCaptureStatus;
+	    std::string captureTimingLogPath;
+	    std::string captureServiceLogPath;
 
     std::vector<ros::Subscriber> subCameraColorConfigs;
     std::vector<ros::Subscriber> subCameraDepthConfigs;
@@ -176,12 +179,14 @@ public:
     std::vector<sensor_msgs::JointState> armJointStateList;
     std::vector<bool> armJointStateChangeList;
 
-    DataCapture(std::string datasetDir, int episodeIndex, int hz, int timeout, double cropTime=-1, bool useService=false): DataUtility(datasetDir, episodeIndex) {
-        this->useService = useService;
-        this->hz = hz;
-        this->timeout = timeout;
-        this->cropTime = useService ? cropTime:-1;
-        int unused = system((std::string("rm -rf ") + episodeDir).c_str());
+	    DataCapture(std::string datasetDir, int episodeIndex, int hz, int timeout, double cropTime=-1, bool useService=false): DataUtility(datasetDir, episodeIndex) {
+	        this->useService = useService;
+	        this->hz = hz;
+	        this->timeout = timeout;
+	        this->cropTime = useService ? cropTime:-1;
+	        captureTimingLogPath = episodeDir + "/capture_timing.log";
+	        captureServiceLogPath = this->datasetDir + "/capture_service.log";
+	        int unused = system((std::string("rm -rf ") + episodeDir).c_str());
         unused = system((std::string("mkdir -p ") + cameraColorDir).c_str());
         unused = system((std::string("mkdir -p ") + cameraDepthDir).c_str());
         unused = system((std::string("mkdir -p ") + cameraPointCloudDir).c_str());
@@ -344,8 +349,51 @@ public:
         }
         #endif
 
-        pubCaptureStatus = nh.advertise<data_msgs::CaptureStatus>("/data_tools_dataCapture/status", 2000);
-    }
+	        pubCaptureStatus = nh.advertise<data_msgs::CaptureStatus>("/data_tools_dataCapture/status", 2000);
+	        appendTimingLog("capture_object_created", "episodeDir=" + episodeDir);
+	    }
+
+	    static std::string wallTimeString(){
+	        std::time_t now = std::time(nullptr);
+	        char buf[64];
+	        std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", std::localtime(&now));
+	        return std::string(buf);
+	    }
+
+	    void appendTimingLog(const std::string& event, const std::string& detail=""){
+	        std::ofstream file(captureTimingLogPath, std::ios::app);
+	        file << wallTimeString() << "\t" << ros::Time::now().toSec() << "\t" << event;
+	        if(detail != ""){
+	            file << "\t" << detail;
+	        }
+	        file << std::endl;
+	    }
+
+	    void appendServiceLog(const std::string& event, const std::string& detail=""){
+	        std::ofstream file(captureServiceLogPath, std::ios::app);
+	        file << wallTimeString() << "\t" << ros::Time::now().toSec() << "\t" << event;
+	        if(detail != ""){
+	            file << "\t" << detail;
+	        }
+	        file << std::endl;
+	    }
+
+	    void writeFrameTimingSummary(){
+	        std::ofstream file(captureTimingLogPath, std::ios::app);
+	        file << "=== frame_summary ===" << std::endl;
+	        for(int i = 0; i < cameraColorNames.size(); i++){
+	            file << "camera/color/" << cameraColorNames.at(i)
+	                 << "\tstart=" << cameraColorStartTimeStamps.at(i)
+	                 << "\tlast=" << cameraColorLastTimeStamps.at(i)
+	                 << "\tcount=" << cameraColorMsgCounts.at(i) << std::endl;
+	        }
+	        for(int i = 0; i < cameraDepthNames.size(); i++){
+	            file << "camera/depth/" << cameraDepthNames.at(i)
+	                 << "\tstart=" << cameraDepthStartTimeStamps.at(i)
+	                 << "\tlast=" << cameraDepthLastTimeStamps.at(i)
+	                 << "\tcount=" << cameraDepthMsgCounts.at(i) << std::endl;
+	        }
+	    }
 
     void run(){
         for(int i = 0; i < cameraColorNames.size(); i++){
@@ -458,13 +506,16 @@ public:
             delete keyboardInterruptCheckingThread;
             keyboardInterruptCheckingThread = nullptr;
         }
-        monitoringThread->join();
-        delete monitoringThread;
-        monitoringThread = nullptr;
-        data_msgs::CaptureStatus captureStatus;
-        captureStatus.quit = true;
-        pubCaptureStatus.publish(captureStatus);
-    }
+	        monitoringThread->join();
+	        delete monitoringThread;
+	        monitoringThread = nullptr;
+	        appendTimingLog("capture_shutdown_begin");
+	        writeFrameTimingSummary();
+	        data_msgs::CaptureStatus captureStatus;
+	        captureStatus.quit = true;
+	        pubCaptureStatus.publish(captureStatus);
+	        appendTimingLog("capture_shutdown_done");
+	    }
 
     void cameraColorHandler(const sensor_msgs::Image::ConstPtr& msg, const int& index){
         cameraColorMsgDeques.at(index).push_back(*msg);
@@ -1796,11 +1847,12 @@ class DataCaptureService{
         if(req.start && req.end){
             if(dataCapture != nullptr){
                 // res.success = false;
-                dataCapture->shutdown();
-                dataCapture->join();
-                delete dataCapture;
-                dataCapture = nullptr;
-                res.success = true;
+	                dataCapture->shutdown();
+	                dataCapture->join();
+	                dataCapture->appendServiceLog("service_toggle_stop_existing", "episodeDir=" + dataCapture->episodeDir);
+	                delete dataCapture;
+	                dataCapture = nullptr;
+	                res.success = true;
             }else{
                 std::string datasetDir = this->datasetDir;
                 int episodeIndex = this->episodeIndex;
@@ -1810,10 +1862,11 @@ class DataCaptureService{
                 if(req.episode_index != -1){
                     episodeIndex = req.episode_index;
                 }
-                dataCapture = new DataCapture(datasetDir, episodeIndex, hz, timeout, cropTime, true);
-                if(req.episode_index == -1){
-                    this->episodeIndex++;
-                }
+	                dataCapture = new DataCapture(datasetDir, episodeIndex, hz, timeout, cropTime, true);
+	                dataCapture->appendServiceLog("service_toggle_start_new", "episodeDir=" + dataCapture->episodeDir);
+	                if(req.episode_index == -1){
+	                    this->episodeIndex++;
+	                }
                 ros::Duration(this->cropTime).sleep();
                 dataCapture->instructionSaving(req.instructions);
                 dataCapture->run();
@@ -1823,11 +1876,12 @@ class DataCaptureService{
             if(req.start){
                 if(dataCapture != nullptr){
                     // res.success = false;
-                    dataCapture->shutdown();
-                    dataCapture->join();
-                    delete dataCapture;
-                    dataCapture = nullptr;
-                }
+	                    dataCapture->shutdown();
+	                    dataCapture->join();
+	                    dataCapture->appendServiceLog("service_start_replace_old", "episodeDir=" + dataCapture->episodeDir);
+	                    delete dataCapture;
+	                    dataCapture = nullptr;
+	                }
                 // else{
                     std::string datasetDir = this->datasetDir;
                     int episodeIndex = this->episodeIndex;
@@ -1837,20 +1891,22 @@ class DataCaptureService{
                     if(req.episode_index != -1){
                         episodeIndex = req.episode_index;
                     }
-                    dataCapture = new DataCapture(datasetDir, episodeIndex, hz, timeout, cropTime, true);
-                    if(req.episode_index == -1){
-                        this->episodeIndex++;
-                    }
+	                    dataCapture = new DataCapture(datasetDir, episodeIndex, hz, timeout, cropTime, true);
+	                    dataCapture->appendServiceLog("service_start_new", "episodeDir=" + dataCapture->episodeDir);
+	                    if(req.episode_index == -1){
+	                        this->episodeIndex++;
+	                    }
                     ros::Duration(this->cropTime).sleep();
                     dataCapture->instructionSaving(req.instructions);
                     dataCapture->run();
                     res.success = true;
                 // }
             }else if(req.end){
-                if(dataCapture != nullptr){
-                    dataCapture->shutdown();
-                    dataCapture->join();
-                    delete dataCapture;
+	                if(dataCapture != nullptr){
+	                    dataCapture->appendServiceLog("service_end_request", "episodeDir=" + dataCapture->episodeDir);
+	                    dataCapture->shutdown();
+	                    dataCapture->join();
+	                    delete dataCapture;
                     dataCapture = nullptr;
                     res.success = true;
                     std::cout<<"wait for start signal"<<std::endl;

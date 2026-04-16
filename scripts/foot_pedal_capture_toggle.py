@@ -1,6 +1,7 @@
 #!/usr/bin/env /usr/bin/python3
 
 import argparse
+import datetime as dt
 import os
 import select
 import signal
@@ -45,6 +46,7 @@ class FootPedalCaptureToggle:
         self.capture_srv = None
         self.fd = None
         self.device = None
+        self.log_path = Path(args.dataset_dir).expanduser() / "foot_pedal_capture.log"
 
     @staticmethod
     def _banner(title, detail=""):
@@ -54,6 +56,16 @@ class FootPedalCaptureToggle:
         if detail:
             print(detail, flush=True)
         print(line, flush=True)
+
+    def _append_log(self, event, detail=""):
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        now = time.time()
+        iso = dt.datetime.fromtimestamp(now).isoformat()
+        line = f"{iso}\t{now:.6f}\t{event}"
+        if detail:
+            line += f"\t{detail}"
+        with self.log_path.open("a", encoding="utf-8") as file:
+            file.write(line + "\n")
 
     @staticmethod
     def _find_next_episode(dataset_dir):
@@ -81,39 +93,47 @@ class FootPedalCaptureToggle:
         episode = self.next_episode
         rospy.loginfo("Right pedal pressed. Requesting capture start for episode%d.", episode)
         self._banner("PEDAL: START REQUEST", f"episode{episode}")
+        self._append_log("pedal_start_request", f"episode{episode}")
         try:
             res = self._call_capture(True, False, episode)
         except Exception as exc:
             rospy.logwarn("Capture start failed: %s", exc)
             self._banner("PEDAL: START FAILED", str(exc))
+            self._append_log("pedal_start_failed", str(exc))
             return
         if not res.success:
             rospy.logwarn("Capture start rejected: %s", res.message)
             self._banner("PEDAL: START REJECTED", res.message)
+            self._append_log("pedal_start_rejected", res.message)
             return
         self.recording = True
         self.next_episode += 1
         rospy.loginfo("Capture started successfully: episode%d", episode)
         self._banner("CAPTURE STARTED", f"episode{episode}")
+        self._append_log("capture_started", f"episode{episode}")
 
     def stop_recording(self):
         rospy.loginfo("Right pedal pressed. Requesting capture stop.")
         self._banner("PEDAL: STOP REQUEST")
+        self._append_log("pedal_stop_request")
         try:
             res = self._call_capture(False, True, -1)
         except Exception as exc:
             rospy.logwarn("Capture stop failed: %s", exc)
             self.recording = False
             self._banner("PEDAL: STOP FAILED", str(exc))
+            self._append_log("pedal_stop_failed", str(exc))
             return
         if not res.success:
             rospy.logwarn("Capture stop rejected: %s", res.message)
             self.recording = False
             self._banner("PEDAL: STOP REJECTED", res.message)
+            self._append_log("pedal_stop_rejected", res.message)
             return
         self.recording = False
         rospy.loginfo("Capture stopped successfully.")
         self._banner("CAPTURE STOPPED")
+        self._append_log("capture_stopped")
 
     def toggle(self):
         if self.recording:
@@ -137,6 +157,7 @@ class FootPedalCaptureToggle:
             return
         _, _, ev_type, code, value = EVENT_STRUCT.unpack(event_bytes)
         if ev_type == EV_KEY and code == KEY_C and value == KEY_PRESS:
+            self._append_log("pedal_key_down", "KEY_C")
             self.toggle()
 
     def run(self):
@@ -153,6 +174,7 @@ class FootPedalCaptureToggle:
             "FOOT PEDAL CAPTURE READY",
             f"device={self.device}\nright pedal KEY_C toggles capture\nnext episode=episode{self.next_episode}",
         )
+        self._append_log("foot_pedal_ready", f"device={self.device} next_episode=episode{self.next_episode}")
 
         while not rospy.is_shutdown():
             readable, _, _ = select.select([self.fd], [], [], 0.2)

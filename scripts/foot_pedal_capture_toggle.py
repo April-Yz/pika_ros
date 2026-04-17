@@ -2,6 +2,7 @@
 
 import argparse
 import datetime as dt
+import json
 import os
 import select
 import signal
@@ -58,6 +59,27 @@ class FootPedalCaptureToggle:
         self.log_path = Path(args.dataset_dir).expanduser() / "foot_pedal_capture.log"
         self.state_log_path = Path(args.dataset_dir).expanduser() / "foot_pedal_state_snapshot.log"
         self.state_md_path = Path(args.dataset_dir).expanduser() / "foot_pedal_state_snapshot.md"
+        self.init_pose_config = self._load_init_pose_config(args.init_pose_config, args.init_pose_name)
+        self.init_pose_publishers = {}
+
+    @staticmethod
+    def _load_init_pose_config(config_path: str, requested_pose_name: str):
+        path = Path(config_path).expanduser()
+        with path.open("r", encoding="utf-8") as file:
+            payload = json.load(file)
+        poses = payload.get("poses", {})
+        pose_name = requested_pose_name or payload.get("default_pose")
+        if not pose_name:
+            raise ValueError(f"No init pose name configured in {path}")
+        pose = poses.get(pose_name)
+        if pose is None:
+            raise ValueError(f"Init pose '{pose_name}' not found in {path}")
+        return {
+            "path": path,
+            "name": pose_name,
+            "description": pose.get("description", ""),
+            "arms": pose.get("arms", {}),
+        }
 
     @staticmethod
     def _banner(title, detail=""):
@@ -264,6 +286,79 @@ class FootPedalCaptureToggle:
         self._banner("STATE SNAPSHOT SAVED", banner_detail)
         rospy.loginfo("Left pedal snapshot saved to %s and %s", self.state_log_path, self.state_md_path)
 
+    def _get_joint_publisher(self, topic: str):
+        publisher = self.init_pose_publishers.get(topic)
+        if publisher is None:
+            publisher = rospy.Publisher(topic, JointState, queue_size=10)
+            self.init_pose_publishers[topic] = publisher
+        return publisher
+
+    def _interpolate_positions(self, current_positions, target_positions, steps):
+        increments = [(target - current) / steps for current, target in zip(current_positions, target_positions)]
+        return [
+            [current + increment * step for current, increment in zip(current_positions, increments)]
+            for step in range(steps + 1)
+        ]
+
+    def restore_init_pose(self):
+        if self.recording:
+            message = f"{self.init_pose_config['name']} blocked while recording"
+            rospy.logwarn("Left pedal ignored: %s", message)
+            self._banner("PEDAL: INIT POSE BLOCKED", message)
+            self._append_log("pedal_left_blocked", message)
+            return
+
+        pose_name = self.init_pose_config["name"]
+        self._append_log("pedal_left_request", f"KEY_A restore_init_pose {pose_name}")
+        self._banner("PEDAL: INIT POSE REQUEST", pose_name)
+
+        duration = max(self.args.init_pose_duration, 0.1)
+        rate_hz = max(self.args.init_pose_rate, 1.0)
+        steps = max(int(duration * rate_hz), 1)
+        rate = rospy.Rate(rate_hz)
+        arm_summaries = []
+        arm_plans = []
+
+        for arm, arm_config in self.init_pose_config["arms"].items():
+            joint_topic = arm_config["joint_topic"]
+            state_topic = arm_config.get("state_topic")
+            joint_names = list(arm_config["joint_names"])
+            target_positions = list(arm_config["joint_positions"])
+            publisher = self._get_joint_publisher(joint_topic)
+
+            current_positions = None
+            if state_topic:
+                current_msg = self._wait_for_message(state_topic, JointState, timeout=0.5)
+                if current_msg is not None and len(current_msg.position) >= len(target_positions):
+                    current_positions = list(current_msg.position[: len(target_positions)])
+
+            position_steps = (
+                self._interpolate_positions(current_positions, target_positions, steps)
+                if current_positions is not None
+                else [target_positions] * (steps + 1)
+            )
+            arm_plans.append((publisher, joint_names, position_steps))
+
+            arm_summaries.append(
+                f"{arm}:{joint_topic}="
+                + ",".join(f"{value:.6f}" for value in target_positions)
+            )
+
+        for step_index in range(steps + 1):
+            stamp = rospy.Time.now()
+            for publisher, joint_names, position_steps in arm_plans:
+                msg = JointState()
+                msg.header.stamp = stamp
+                msg.name = joint_names
+                msg.position = position_steps[step_index]
+                publisher.publish(msg)
+            rate.sleep()
+
+        detail = f"{pose_name}\n" + "\n".join(arm_summaries)
+        self._banner("INIT POSE SENT", detail)
+        self._append_log("init_pose_sent", detail.replace("\n", " | "))
+        rospy.loginfo("Left pedal sent init pose '%s' from %s", pose_name, self.init_pose_config["path"])
+
     @staticmethod
     def _find_next_episode(dataset_dir):
         dataset_path = Path(dataset_dir).expanduser()
@@ -357,11 +452,11 @@ class FootPedalCaptureToggle:
             return
         if code == KEY_A:
             self._append_log("pedal_key_down", "KEY_A")
-            self.snapshot_current_state()
+            self.restore_init_pose()
             return
         if code == KEY_B:
             self._append_log("pedal_key_down", "KEY_B")
-            rospy.loginfo("Middle pedal(KEY_B) pressed. No action bound.")
+            self.snapshot_current_state()
             return
         if code == KEY_C:
             self._append_log("pedal_key_down", "KEY_C")
@@ -373,7 +468,7 @@ class FootPedalCaptureToggle:
         self.capture_srv = rospy.ServiceProxy("/data_tools_dataCapture/capture_service", CaptureService)
         self.open_device()
         rospy.loginfo(
-            "Foot pedal capture toggle ready. Left pedal(KEY_A) snapshots state. Right pedal(KEY_C) toggles start/stop. dataset_dir=%s next_episode=episode%d",
+            "Foot pedal capture toggle ready. Left pedal(KEY_A) restores init pose. Middle pedal(KEY_B) snapshots state. Right pedal(KEY_C) toggles start/stop. dataset_dir=%s next_episode=episode%d",
             self.args.dataset_dir,
             self.next_episode,
         )
@@ -381,7 +476,8 @@ class FootPedalCaptureToggle:
             "FOOT PEDAL CAPTURE READY",
             (
                 f"device={self.device}\n"
-                "left pedal KEY_A snapshots current state\n"
+                f"left pedal KEY_A restores init pose '{self.init_pose_config['name']}'\n"
+                "middle pedal KEY_B snapshots current state\n"
                 "right pedal KEY_C toggles capture\n"
                 f"next episode=episode{self.next_episode}"
             ),
@@ -403,8 +499,9 @@ class FootPedalCaptureToggle:
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Use the left foot pedal (KEY_A) to snapshot current robot state and "
-            "the right foot pedal (KEY_C) to toggle ROS data capture start/stop."
+            "Use the left foot pedal (KEY_A) to restore a named init pose, the middle foot pedal "
+            "(KEY_B) to snapshot current robot state, and the right foot pedal (KEY_C) to toggle "
+            "ROS data capture start/stop."
         )
     )
     parser.add_argument(
@@ -414,6 +511,28 @@ def parse_args():
     )
     parser.add_argument("--dataset-dir", default=os.path.expanduser("~/agilex/data"))
     parser.add_argument("--instructions", default="[null]")
+    parser.add_argument(
+        "--init-pose-config",
+        default=str(Path(__file__).resolve().parent / "init_poses.json"),
+        help="Init pose configuration JSON path.",
+    )
+    parser.add_argument(
+        "--init-pose-name",
+        default="ready_above_zero",
+        help="Named init pose to bind to the left pedal.",
+    )
+    parser.add_argument(
+        "--init-pose-duration",
+        type=float,
+        default=0.6,
+        help="Interpolation duration in seconds when sending the init pose. Default: 0.6",
+    )
+    parser.add_argument(
+        "--init-pose-rate",
+        type=float,
+        default=50.0,
+        help="Interpolation publish rate in Hz when sending the init pose. Default: 50",
+    )
     return parser.parse_args()
 
 

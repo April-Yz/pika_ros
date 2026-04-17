@@ -288,3 +288,28 @@
     - `rostopic echo -n 1 /gripper/gripper_r/data`
     - `rostopic echo -n 1 /pika_pose_l`
     - `rostopic echo -n 1 /pika_pose_r`
+
+- Added `scripts/init_poses.json`.
+  - Reason: user requested a maintained name-to-init-position mapping for later pedal-triggered restore, and chose the current named pose to represent an above-zero ready position.
+  - Evidence source:
+    - latest `my_init_pose` joint values under `docs/robot_named_poses.json`
+  - Observed result:
+    - created named mapping `ready_above_zero`
+    - stored left/right joint targets for pedal-triggered restore
+
+- Updated `scripts/foot_pedal_capture_toggle.py` again.
+  - Reason: user requested binding the left pedal to a named init pose loaded from JSON rather than only recording snapshots.
+  - Evidence source:
+    - `rostopic info /joint_states_l`
+    - `rostopic info /joint_states_r`
+    - source inspection of `src/sensor_tools/launch/open_multi_sensor.launch`
+    - source inspection of `install/share/pika_remote_piper/scripts/teleop_piper_publish.py`
+  - Observed result:
+    - left pedal `KEY_A` now publishes the configured init pose to `/joint_states_l` and `/joint_states_r`
+    - middle pedal `KEY_B` now performs the previous state snapshot behavior
+    - right pedal `KEY_C` still toggles capture start/stop
+
+- Updated `scripts/FOOT_PEDAL.md` again.
+  - Reason: document that `KEY_A` now restores `ready_above_zero`, `KEY_B` snapshots state, and the name mapping lives in `scripts/init_poses.json`.
+  - Evidence source:
+    - source inspection of the updated foot pedal script and init pose config

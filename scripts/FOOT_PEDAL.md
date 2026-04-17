@@ -40,15 +40,17 @@
 
 ## 当前控制策略
 
-当前使用左、右踏板：
+当前使用左、中、右踏板：
 
-- 左踏板 `KEY_A`：读取当前机器人状态快照，并写入数据目录下的状态 `log/md`
+- 左踏板 `KEY_A`：恢复到命名 init pose，默认是 `ready_above_zero`
+- 中踏板 `KEY_B`：读取当前机器人状态快照，并写入数据目录下的状态 `log/md`
 - 右踏板 `KEY_C`：第一次踩下开始采集
 - 右踏板 `KEY_C`：第二次踩下结束采集
 
-当前中踏板先空着，不做任何动作：
+当前 init pose 配置文件：
 
-- 中踏板 `KEY_B`：忽略
+- `~/pika_ros/scripts/init_poses.json`
+- 当前默认名字：`ready_above_zero`
 
 ## 手动测试命令
 
@@ -92,9 +94,10 @@ source ~/pika_ros/install/setup.zsh
 脚本启动后行为：
 
 - 监听 `/dev/input/by-id/usb-PCsensor_FootSwitch-event-kbd`
-- 响应左踏板 `KEY_A` 和右踏板 `KEY_C`
-- 左踏板会抓取当前 `joint_states_single*`、`piper_FK*/urdf_end_pose_orient`、`sensor/gripper*` 等可用状态
-- 左踏板快照输出到 `datasetDir/foot_pedal_state_snapshot.log` 和 `datasetDir/foot_pedal_state_snapshot.md`
+- 响应左踏板 `KEY_A`、中踏板 `KEY_B` 和右踏板 `KEY_C`
+- 左踏板会读取 `init_poses.json` 中的命名位置，并向 `/joint_states_l`、`/joint_states_r` 发布关节目标
+- 中踏板会抓取当前 `joint_states_single*`、`piper_FK*/urdf_end_pose_orient`、`sensor/gripper*` 等可用状态
+- 中踏板快照输出到 `datasetDir/foot_pedal_state_snapshot.log` 和 `datasetDir/foot_pedal_state_snapshot.md`
 - 自动调用 `/data_tools_dataCapture/capture_service`
 - 自动从当前最大 `episode` 后面继续编号
 

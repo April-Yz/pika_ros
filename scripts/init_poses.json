@@ -1,0 +1,22 @@
+{
+  "default_pose": "ready_above_zero",
+  "poses": {
+    "ready_above_zero": {
+      "description": "Ready pose above zero for dual-arm pedal-triggered reset.",
+      "arms": {
+        "l": {
+          "joint_topic": "/joint_states_l",
+          "state_topic": "/joint_states_single_l",
+          "joint_names": ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"],
+          "joint_positions": [-0.023166, 0.312457, -0.011897, -0.078167, 0.007169, 0.375063, 0.0]
+        },
+        "r": {
+          "joint_topic": "/joint_states_r",
+          "state_topic": "/joint_states_single_r",
+          "joint_names": ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"],
+          "joint_positions": [-0.046453, 0.269266, -0.112985, -0.032847, 0.166084, -0.825014, 0.0]
+        }
+      }
+    }
+  }
+}

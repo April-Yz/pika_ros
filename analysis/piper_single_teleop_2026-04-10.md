@@ -513,3 +513,46 @@ Runtime evidence source:
 - `rostopic echo -n 1 /pika_pose_l`
 - `rostopic echo -n 1 /pika_pose_r`
 - `/usr/bin/python3 /home/piper/pika_ros/scripts/record_named_robot_pose.py --name current_init_pose_candidate`
+
+## 2026-04-17 Left-Pedal Init Pose Binding Update
+
+Confirmed in code and runtime topology:
+
+- The correct dual-arm command topics for a manual joint-space restore are `/joint_states_l` and `/joint_states_r`.
+- Live runtime confirmed both topics currently have:
+  - publishers from `teleop_piper_*` and `piper_IK_*`
+  - subscribers from `sensor_serial_gripper_imu_l` and `sensor_serial_gripper_imu_r`
+- A dedicated init pose mapping file now exists at `scripts/init_poses.json`.
+- The current named mapping is:
+  - `ready_above_zero`
+- `ready_above_zero` is populated from the latest recorded `my_init_pose` joint values:
+  - left: `[-0.023166, 0.312457, -0.011897, -0.078167, 0.007169, 0.375063, 0.0]`
+  - right: `[-0.046453, 0.269266, -0.112985, -0.032847, 0.166084, -0.825014, 0.0]`
+- `scripts/foot_pedal_capture_toggle.py` now binds:
+  - `KEY_A` -> restore `ready_above_zero`
+  - `KEY_B` -> snapshot current state
+  - `KEY_C` -> start/stop capture
+
+Implementation details confirmed in code:
+
+- Left-pedal restore loads the configured pose name from JSON.
+- It interpolates from the current `joint_states_single_l/r` toward the target joint values over a short fixed duration.
+- It publishes both arms synchronously per interpolation step.
+- Restore is blocked while recording is active.
+
+Still only a runtime hypothesis until the user exercises the pedal on the live robot:
+
+- The current interpolation duration and rate are suitable for safe physical motion in the user's real setup.
+- The dual-arm path from current pose to `ready_above_zero` is collision-free in the current workspace.
+- Running teleop publishers and this pedal-triggered publisher at the same time will not create unwanted command contention in the user's exact runtime sequence.
+
+Runtime evidence source:
+
+- `rostopic info /joint_states_l`
+- `rostopic info /joint_states_r`
+- source inspection of:
+  - `src/sensor_tools/launch/open_multi_sensor.launch`
+  - `src/sensor_tools/launch/open_remote_multi_sensor.launch`
+  - `install/share/pika_remote_piper/scripts/teleop_piper_publish.py`
+  - `scripts/foot_pedal_capture_toggle.py`
+  - `scripts/init_poses.json`

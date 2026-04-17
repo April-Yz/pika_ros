@@ -1,0 +1,123 @@
+{
+  "poses": [
+    {
+      "name": "current_init_pose_candidate",
+      "recorded_at": "2026-04-17T20:20:02.081997",
+      "note": "joint_state is the preferred source for reset/init binding; localization_pose is recorded separately and must not be treated as arm FK pose.",
+      "arms": {
+        "l": {
+          "arm": "l",
+          "joint_state": {
+            "topic": null,
+            "data": null,
+            "status": "unavailable"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": null
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_l",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776428406,
+                "nsecs": 260380677
+              },
+              "position": {
+                "x": 1.2308330727587453,
+                "y": -0.2668311486249605,
+                "z": -0.5024424887956649
+              },
+              "orientation": {
+                "x": 0.007119319802999033,
+                "y": 0.267932125654594,
+                "z": -0.8016584961768743,
+                "w": 0.5343270036552393
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_l/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776428406,
+                "nsecs": 270630649
+              },
+              "angle": 1.6634,
+              "distance": 0.09639124545477393,
+              "effort": 58.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": false,
+              "status": "0x40",
+              "voltage": 23.799999237060547,
+              "driver_temp": 43.0,
+              "motor_temp": 37.0,
+              "bus_current": 0.0
+            }
+          }
+        },
+        "r": {
+          "arm": "r",
+          "joint_state": {
+            "topic": null,
+            "data": null,
+            "status": "unavailable"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": null
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_r",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776428410,
+                "nsecs": 302053842
+              },
+              "position": {
+                "x": -0.07660294512935373,
+                "y": -0.13895966553289152,
+                "z": -0.17499446988979353
+              },
+              "orientation": {
+                "x": -0.3569063849486028,
+                "y": -0.257696222783861,
+                "z": 0.7938185698373049,
+                "w": -0.4195981021493143
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_r/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776428410,
+                "nsecs": 317014088
+              },
+              "angle": 1.67,
+              "distance": 0.0967070407030412,
+              "effort": -134.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": true,
+              "status": "0x40",
+              "voltage": 23.899999618530273,
+              "driver_temp": 44.0,
+              "motor_temp": 37.0,
+              "bus_current": 0.0
+            }
+          }
+        }
+      }
+    }
+  ]
+}

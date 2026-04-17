@@ -460,3 +460,56 @@ Runtime evidence supporting the code-level conclusion:
   - `src/data_tools/launch/run_data_capture_multi_pika_teleop_d435.launch`
   - `install/share/pika_remote_piper/scripts/piper_FK.py`
   - `install/share/pika_remote_piper/scripts/teleop_piper_publish.py`
+
+## 2026-04-17 Named Init Pose Capture Update
+
+Confirmed from live runtime evidence:
+
+- A dedicated pose-recording script now exists at `scripts/record_named_robot_pose.py`.
+- It writes one named record to both:
+  - `docs/robot_named_poses.json`
+  - `docs/robot_named_poses.md`
+- The record intentionally separates:
+  - `joint_state`
+  - `fk_pose`
+  - `localization_pose`
+  - `gripper`
+- On the current dual-arm runtime, both arms had:
+  - available `/pika_pose_l` and `/pika_pose_r`
+  - available `/gripper/gripper_l/data` and `/gripper/gripper_r/data`
+  - unavailable live arm joint state on the expected joint topics during the capture window
+- Because no arm joint state was available, the current record cannot be used yet as a true joint-space reset/init target.
+
+Current recorded candidate:
+
+- name: `current_init_pose_candidate`
+- left localization pose:
+  - `x=1.230833, y=-0.266831, z=-0.502442`
+- right localization pose:
+  - `x=-0.076603, y=-0.138960, z=-0.174994`
+- left gripper:
+  - `angle=1.663400, distance=0.096391`
+- right gripper:
+  - `angle=1.670000, distance=0.096707`
+
+Still only a runtime hypothesis:
+
+- The arm joint topics may resume publishing under a different launch mode or only after the arm/control chain is fully active.
+- Once a live joint topic becomes available, rerunning `record_named_robot_pose.py` should produce a usable joint-space init candidate and a computed FK pose.
+
+Runtime evidence source:
+
+- `rostopic list`
+- `rostopic info /joint_states_single_l`
+- `rostopic info /joint_states_single_r`
+- `rostopic info /joint_states_gripper_l`
+- `rostopic info /joint_states_gripper_r`
+- `rostopic info /joint_states_single_gripper_l`
+- `rostopic info /joint_states_single_gripper_r`
+- `rosnode info /gripper_serial_gripper_imu_l`
+- `rosnode info /sensor_serial_gripper_imu_l`
+- `rostopic echo -n 1 /gripper/gripper_l/data`
+- `rostopic echo -n 1 /gripper/gripper_r/data`
+- `rostopic echo -n 1 /pika_pose_l`
+- `rostopic echo -n 1 /pika_pose_r`
+- `/usr/bin/python3 /home/piper/pika_ros/scripts/record_named_robot_pose.py --name current_init_pose_candidate`

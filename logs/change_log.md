@@ -256,3 +256,35 @@
 
 - `.gitignore` unchanged.
   - Reason: the new snapshot `log/md` files are written under the runtime dataset directory outside the repository, so no repository ignore rule was needed.
+
+- Added `scripts/record_named_robot_pose.py`.
+  - Reason: user clarified that they need a dedicated file for manually recording named restore/init candidates, separate from foot pedal runtime logs.
+  - Evidence source:
+    - live topic inspection with `rostopic list`, `rostopic info`, and `rosnode info`
+    - source inspection of `install/share/pika_remote_piper/scripts/piper_FK.py`
+  - Observed result:
+    - the new script records one named pose entry into both `docs/robot_named_poses.json` and `docs/robot_named_poses.md`
+    - the record keeps `joint_state`, `fk_pose`, `localization_pose`, and `gripper` separated so `/pika_pose_*` is not mistaken for actual arm FK pose
+
+- Added `docs/robot_named_poses.json` and `docs/robot_named_poses.md`.
+  - Reason: persist the current named pose candidate in both machine-readable and human-readable formats for later left-pedal init binding.
+  - Evidence source:
+    - `/usr/bin/python3 /home/piper/pika_ros/scripts/record_named_robot_pose.py --name current_init_pose_candidate`
+  - Observed result:
+    - current `current_init_pose_candidate` captured:
+      - `localization_pose` on `/pika_pose_l` and `/pika_pose_r`
+      - gripper state on `/gripper/gripper_l/data` and `/gripper/gripper_r/data`
+      - `joint_state` unavailable on both arms in the current runtime
+      - `fk_pose` unavailable because no live arm joint state was available to compute it
+
+- Updated `analysis/piper_single_teleop_2026-04-10.md` again.
+  - Reason: record that the current runtime can provide localization pose and gripper state, but not live arm joint state, which blocks creation of a true joint-space init pose from this run.
+  - Evidence source:
+    - `rostopic list`
+    - `rostopic info /joint_states_single_l`
+    - `rostopic info /joint_states_single_r`
+    - `rostopic info /joint_states_gripper_l`
+    - `rostopic echo -n 1 /gripper/gripper_l/data`
+    - `rostopic echo -n 1 /gripper/gripper_r/data`
+    - `rostopic echo -n 1 /pika_pose_l`
+    - `rostopic echo -n 1 /pika_pose_r`

@@ -219,6 +219,19 @@
 
 ## 2026-04-17
 
+- Updated `scripts/analyze_episode_hz.py`.
+  - Reason: `capture_status_hz_buffered_10hz.log` uses `/buffered_capture/...` topic names, so the episode Hz SVG for buffered datasets such as `pour` could render with no curves and all-`NaN` summaries.
+  - Evidence source:
+    - `/usr/bin/python3 /home/piper/pika_ros/scripts/analyze_episode_hz.py --task-name pour 30 --overwrite`
+    - `/home/piper/agilex/pour/capture_status_hz_buffered_10hz.log`
+    - `/home/piper/agilex/pour/episode30/capture_timing.log`
+
+- Added `scripts/ISSUE_LOG_2026-04-17_ANALYZE_EPISODE_HZ.md`.
+  - Reason: record the root cause and fix for the empty/left-stacked `hz_summary.svg` output in buffered capture datasets.
+  - Evidence source:
+    - source inspection of `scripts/analyze_episode_hz.py`
+    - runtime validation against `/home/piper/agilex/pour`
+
 - Updated `scripts/foot_pedal_capture_toggle.py`.
   - Reason: user requested that the left foot pedal capture the current gripper position, current joint angles, and FK end pose into both `log` and `md` files before any reset behavior is added.
   - Evidence source:

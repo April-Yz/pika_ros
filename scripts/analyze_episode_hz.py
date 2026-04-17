@@ -38,11 +38,23 @@ TOPIC_COLORS = {
 }
 
 
+def canonical_topic_name(topic: str) -> str:
+    prefix = "/buffered_capture"
+    if topic.startswith(prefix + "/"):
+        return topic[len(prefix) :]
+    return topic
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Summarize and visualize capture_status_hz.log for one episode."
+        description="Summarize and visualize capture_status_hz.log for one or more episodes."
     )
-    parser.add_argument("episode", type=int, help="Episode index, e.g. 28")
+    parser.add_argument(
+        "episodes",
+        nargs="*",
+        type=int,
+        help="Episode indices, e.g. 3 5 8. If omitted, all episode folders under dataset are processed.",
+    )
     parser.add_argument("--dataset-dir", default=None, help="Dataset root. Overrides --task-name/--dataset-root.")
     parser.add_argument("--dataset-root", default=str(Path.home() / "agilex"), help="Dataset parent root used together with --task-name.")
     parser.add_argument("--task-name", default="data", help="Task subdirectory under --dataset-root. Default: data")
@@ -55,6 +67,11 @@ def parse_args():
         "--output-svg",
         default=None,
         help="Optional output SVG path. Defaults to episodeN/hz_summary.svg",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing output SVG(s).",
     )
     return parser.parse_args()
 
@@ -74,6 +91,20 @@ def resolve_status_log(dataset_dir: Path, name: str = None) -> Path:
     if buffered.exists():
         return buffered
     return dataset_dir / "capture_status_hz.log"
+
+
+def episode_sort_key(path: Path):
+    suffix = path.name[len("episode") :]
+    return (0, int(suffix)) if suffix.isdigit() else (1, path.name)
+
+
+def find_episode_dirs(dataset_dir: Path) -> List[Path]:
+    episodes = [
+        p
+        for p in dataset_dir.iterdir()
+        if p.is_dir() and p.name.startswith("episode")
+    ]
+    return sorted(episodes, key=episode_sort_key)
 
 
 def parse_capture_window(timing_path: Path) -> Tuple[Optional[float], Optional[float], dt.datetime, dt.datetime]:
@@ -147,9 +178,10 @@ def summarize(records: List[dict], start_wall: dt.datetime) -> Dict[str, dict]:
     for obj in records:
         rel_time = (obj["wall_dt"] - base_wall).total_seconds()
         for topic, freq in zip(obj["topics"], obj["frequencies"]):
-            if topic not in topic_data:
+            canonical_topic = canonical_topic_name(topic)
+            if canonical_topic not in topic_data:
                 continue
-            topic_data[topic].append((rel_time, float(freq)))
+            topic_data[canonical_topic].append((rel_time, float(freq)))
 
     summary = {}
     for topic in TOPICS:
@@ -207,11 +239,23 @@ def build_svg(summary: Dict[str, dict], duration: float, output_path: Path):
     top = 60
     bottom = 90
     plot_h = height - top - bottom
+    series_min_t = min(
+        (t for topic in TOPICS for t, _ in summary[topic]["series"]),
+        default=0.0,
+    )
+    series_max_t = max(
+        (t for topic in TOPICS for t, _ in summary[topic]["series"]),
+        default=duration,
+    )
+    plot_start = min(0.0, series_min_t)
+    plot_end = max(duration, series_max_t, plot_start + 1e-6)
+    plot_duration = max(plot_end - plot_start, 1e-6)
 
     def x_px(seconds: float) -> float:
-        if duration <= 0:
+        if plot_duration <= 0:
             return left
-        return left + (seconds / duration) * plot_w
+        clamped = min(max(seconds, plot_start), plot_end)
+        return left + ((clamped - plot_start) / plot_duration) * plot_w
 
     def y_px(freq: float) -> float:
         transformed = y_transform(freq)
@@ -235,7 +279,7 @@ def build_svg(summary: Dict[str, dict], duration: float, output_path: Path):
 
     x_ticks = 8
     for idx in range(x_ticks + 1):
-        sec = duration * idx / x_ticks if duration > 0 else 0
+        sec = plot_start + plot_duration * idx / x_ticks if plot_duration > 0 else plot_start
         x = x_px(sec)
         svg.append(f'<line x1="{x}" y1="{top}" x2="{x}" y2="{top + plot_h}" stroke="#e0e0e0" stroke-width="1"/>')
         svg.append(f'<text x="{x}" y="{top + plot_h + 25}" text-anchor="middle" font-size="14" font-family="monospace" fill="#333">{sec:.1f}s</text>')
@@ -294,18 +338,122 @@ def print_summary(episode: int, summary: Dict[str, dict]):
             print("  fluctuation: NaN")
 
 
-def main():
-    args = parse_args()
-    dataset_dir = resolve_dataset_dir(args)
-    episode_dir = dataset_dir / f"episode{args.episode}"
-    start, end, start_wall, end_wall = parse_capture_window(episode_dir / "capture_timing.log")
-    records = load_records(resolve_status_log(dataset_dir, args.status_log_name), start, end, start_wall, end_wall)
+def resolve_output_path(args, episode_dir: Path, episode_id: int, single_episode: bool) -> Path:
+    if args.output_svg is None:
+        return episode_dir / "hz_summary.svg"
+
+    output_path = Path(args.output_svg).expanduser()
+    if single_episode:
+        return output_path
+
+    if output_path.suffix.lower() == ".svg":
+        raise RuntimeError(
+            "When processing multiple episodes, --output-svg must be a directory path."
+        )
+    output_path.mkdir(parents=True, exist_ok=True)
+    return output_path / f"episode{episode_id}_hz_summary.svg"
+
+
+def analyze_one_episode(
+    args,
+    dataset_dir: Path,
+    status_log: Path,
+    episode_id: int,
+    single_episode: bool,
+) -> Tuple[str, Optional[str]]:
+    episode_dir = dataset_dir / f"episode{episode_id}"
+    if not episode_dir.is_dir():
+        return "failed", f"episode{episode_id}: directory not found"
+
+    output_svg = resolve_output_path(args, episode_dir, episode_id, single_episode)
+    if output_svg.exists() and not args.overwrite:
+        print(f"[skip] episode{episode_id}: {output_svg.name} already exists")
+        return "skipped", None
+
+    timing_path = episode_dir / "capture_timing.log"
+    if not timing_path.exists():
+        return "failed", f"episode{episode_id}: capture_timing.log not found"
+
+    start, end, start_wall, end_wall = parse_capture_window(timing_path)
+    records = load_records(status_log, start, end, start_wall, end_wall)
     summary = summarize(records, start_wall)
-    print_summary(args.episode, summary)
-    output_svg = Path(args.output_svg).expanduser() if args.output_svg else episode_dir / "hz_summary.svg"
+    print_summary(episode_id, summary)
     duration = (end_wall - start_wall).total_seconds()
     build_svg(summary, max(duration, 1e-6), output_svg)
     print(f"Saved plot to: {output_svg}")
+    return "succeeded", None
+
+
+def main():
+    args = parse_args()
+    dataset_dir = resolve_dataset_dir(args)
+    if not dataset_dir.is_dir():
+        raise SystemExit(f"Dataset directory not found: {dataset_dir}")
+
+    status_log = resolve_status_log(dataset_dir, args.status_log_name)
+    if not status_log.exists():
+        raise SystemExit(f"Status log not found: {status_log}")
+
+    all_episode_dirs = find_episode_dirs(dataset_dir)
+    if not all_episode_dirs:
+        raise SystemExit(f"No episode directories found under {dataset_dir}")
+
+    if args.episodes:
+        episode_ids = args.episodes
+    else:
+        episode_ids = [
+            int(ep.name[len("episode") :])
+            for ep in all_episode_dirs
+            if ep.name[len("episode") :].isdigit()
+        ]
+
+    if not episode_ids:
+        raise SystemExit(
+            f"No numeric episode directories found under {dataset_dir}; pass explicit episode IDs."
+        )
+
+    # Keep order stable and avoid duplicate work.
+    episode_ids = list(dict.fromkeys(episode_ids))
+    single_episode = len(episode_ids) == 1
+
+    succeeded = []
+    skipped = []
+    failed = []
+
+    for episode_id in episode_ids:
+        print(f"\n[run]  episode{episode_id}")
+        try:
+            result, message = analyze_one_episode(
+                args,
+                dataset_dir,
+                status_log,
+                episode_id,
+                single_episode,
+            )
+        except Exception as exc:
+            result, message = "failed", f"episode{episode_id}: {exc}"
+
+        if result == "succeeded":
+            succeeded.append(f"episode{episode_id}")
+        elif result == "skipped":
+            skipped.append(f"episode{episode_id}")
+        else:
+            if message:
+                print(f"[fail] {message}")
+            failed.append(f"episode{episode_id}")
+
+    print("\nSummary")
+    print(f"  succeeded: {len(succeeded)}")
+    print(f"  skipped:   {len(skipped)}")
+    print(f"  failed:    {len(failed)}")
+    if succeeded:
+        print("  success list:", ", ".join(succeeded))
+    if skipped:
+        print("  skipped list:", ", ".join(skipped))
+    if failed:
+        print("  failed list:", ", ".join(failed))
+
+    return 1 if failed and not (succeeded or skipped) else 0
 
 
 if __name__ == "__main__":

@@ -430,3 +430,33 @@ Runtime evidence source:
 - `rostopic echo /piper_IK_r/ctrl_end_pose`
 - `rostopic echo /joint_states_r`
 - `rostopic echo /joint_states_single_r`
+
+## 2026-04-17 Foot Pedal State Snapshot Update
+
+Confirmed in code:
+
+- `scripts/foot_pedal_capture_toggle.py` no longer treats the left pedal as ignored.
+- Left pedal `KEY_A` now performs a read-only state snapshot and does not command robot motion.
+- The snapshot code looks for current arm joint states on `/joint_states_single`, `/joint_states_single_l`, `/joint_states_single_r`.
+- It looks for current FK end pose on `/piper_FK/urdf_end_pose_orient`, `/piper_FK_l/urdf_end_pose_orient`, `/piper_FK_r/urdf_end_pose_orient`.
+- It looks for current gripper encoder/state on `/sensor/gripper/data`, `/sensor/gripper_l/data`, `/sensor/gripper_r/data`, `/gripper/gripper/data`, `/gripper/gripper_l/data`, `/gripper/gripper_r/data`.
+- If no dedicated `data_msgs/Gripper` topic is available, it falls back to the last joint position from `/joint_states_gripper*` as a derived gripper value.
+- Snapshot output is appended to:
+  - `datasetDir/foot_pedal_state_snapshot.log`
+  - `datasetDir/foot_pedal_state_snapshot.md`
+
+Still only a runtime hypothesis until exercised on the live robot:
+
+- The exact topic subset available in the user's current single-arm or dual-arm launch.
+- Whether the preferred gripper data source will be the `data_msgs/Gripper` topic or the fallback last joint in `/joint_states_gripper*`.
+- Whether all desired topics publish quickly enough for the current `rospy.wait_for_message(..., timeout=1.0)` window.
+
+Runtime evidence supporting the code-level conclusion:
+
+- source inspection of `scripts/foot_pedal_capture_toggle.py`
+- source inspection of `scripts/FOOT_PEDAL.md`
+- source inspection of `src/data_msgs/msg/Gripper.msg`
+- repository topic references under:
+  - `src/data_tools/launch/run_data_capture_multi_pika_teleop_d435.launch`
+  - `install/share/pika_remote_piper/scripts/piper_FK.py`
+  - `install/share/pika_remote_piper/scripts/teleop_piper_publish.py`

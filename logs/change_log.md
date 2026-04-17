@@ -216,3 +216,30 @@
     - `rostopic echo /teleop_status_r`
     - `rostopic echo /pika_localization_status_r`
     - `rostopic echo /pika_pose_r`
+
+## 2026-04-17
+
+- Updated `scripts/foot_pedal_capture_toggle.py`.
+  - Reason: user requested that the left foot pedal capture the current gripper position, current joint angles, and FK end pose into both `log` and `md` files before any reset behavior is added.
+  - Evidence source:
+    - source inspection of `scripts/foot_pedal_capture_toggle.py`
+    - source inspection of `scripts/FOOT_PEDAL.md`
+    - source inspection of `src/data_msgs/msg/Gripper.msg`
+    - topic naming inspected under `src/` and `install/share/` for `/joint_states_single*`, `/joint_states_gripper*`, `/piper_FK*/urdf_end_pose_orient`, and `/sensor/gripper*`
+  - Observed result:
+    - left pedal `KEY_A` now records a runtime snapshot to `datasetDir/foot_pedal_state_snapshot.log` and `datasetDir/foot_pedal_state_snapshot.md`
+    - right pedal `KEY_C` still toggles capture start/stop
+    - middle pedal `KEY_B` remains unbound
+
+- Updated `scripts/FOOT_PEDAL.md`.
+  - Reason: document the new left-pedal snapshot behavior and the snapshot output file locations.
+  - Evidence source:
+    - source inspection of the updated foot pedal script
+
+- Updated `analysis/piper_single_teleop_2026-04-10.md`.
+  - Reason: record what this change confirms in code versus what still needs live runtime validation.
+  - Evidence source:
+    - source inspection of the updated foot pedal script and the expected runtime topic set
+
+- `.gitignore` unchanged.
+  - Reason: the new snapshot `log/md` files are written under the runtime dataset directory outside the repository, so no repository ignore rule was needed.

@@ -113,140 +113,98 @@ python3 setup_device.py
 cd ~/pika_ros/install/lib && ./survive-cli --force-calibrate
 # can
 cd ~/pika_ros/src/PikaAnyArm/piper/piper_ros
-
 bash can_activate.sh can0 1000000
 
-# 双臂can
+#  双臂can
 cd ~/pika_ros/src/PikaAnyArm/piper/piper_ros
-
 bash find_all_can_port.sh
-
 cd ~/pika_ros/src/PikayiAnyArm/piper/piper_ros
-
 bash can_config.sh
 
-roscore
+# roscore
+# # 终端2
+#   conda deactivate
+#   export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+#   unset PYTHONHOME
+#   unset PYTHONPATH
+#   source /opt/ros/noetic/setup.zsh
+#   source ~/pika_ros/install/setup.zsh
+#   cd ~/pika_ros/scripts
+#   bash start_sensor_gripper.bash
 
-# 终端2
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  cd ~/pika_ros/scripts
-  bash start_sensor_gripper.bash
 
+# # 终端3
+#    conda activate pika
+#   source ~/pika_ros/install/setup.zsh
+#   roslaunch pika_remote_piper teleop_rand_single_piper.launch
 
-# 终端3
-   conda activate pika
-  source ~/pika_ros/install/setup.zsh
-  roslaunch pika_remote_piper teleop_rand_single_piper.launch
+# # 双臂 s2
+# # conda deactivate
+# # source ~/pika_ros/install/setup.bash
+# # cd ~/pika_ros/scripts && bash start_multi_sensor.bash
+#   conda deactivate
+#   export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+#   unset PYTHONHOME
+#   unset PYTHONPATH
+#   source /opt/ros/noetic/setup.zsh
+#   source ~/pika_ros/install/setup.zsh
+#   cd ~/pika_ros/scripts
+#   bash start_multi_sensor.bash
 
-# 双臂 s2
+# # s3
+# # source ~/pika_ros/install/setup.bash
+# # conda activate pika
+# # roslaunch pika_remote_piper teleop_rand_multi_piper.launch
+
+#   conda activate pika
+#   source ~/pika_ros/install/setup.zsh
+#   roslaunch pika_remote_piper teleop_rand_multi_piper.launch
+
+# # 监控
+#   tmux kill-session -t piper-mon
+#   PIKA_ROS_SETUP=/home/piper/pika_ros/install/setup.zsh bash /home/piper/pika_ros/scripts/monitor_single_piper_tmux.bash
+#   tmux attach -t piper-mon
+#   # 低频监控
+#   tmux kill-session -t piper-low
+#   PIKA_ROS_SETUP=/home/piper/pika_ros/install/setup.zsh bash /home/piper/pika_ros/scripts/monitor_single_piper_lowfreq_tmux.bash
+#   tmux attach -t piper-low
+
+# # 
+# 终端1：
+# Plain Text
+# 复制代码
+# 1
+# roscore
+# 终端2：
+# Plain Text
+# 复制代码
+# 1
+# 2
+# 3
 # conda deactivate
 # source ~/pika_ros/install/setup.bash
-# cd ~/pika_ros/scripts && bash start_multi_sensor.bash
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  cd ~/pika_ros/scripts
-  bash start_multi_sensor.bash
-
-# s3
+# cd ~/pika_ros/scripts && bash start_multi_sensor.bash sensor
+# 终端3：
+# Plain Text
+# 复制代码
+# 1
+# 2
+# 3
+# conda deactivate
+# source ~/pika_ros/install/setup.bash
+# cd ~/pika_ros/scripts && bash start_multi_gripper.bash gripper sensor
+# 终端4：
+# Plain Text
+# 复制代码
+# 1
+# 2
+# 3
 # source ~/pika_ros/install/setup.bash
 # conda activate pika
 # roslaunch pika_remote_piper teleop_rand_multi_piper.launch
 
-  conda activate pika
-  source ~/pika_ros/install/setup.zsh
-  roslaunch pika_remote_piper teleop_rand_multi_piper.launch
+#
 
-# 监控
-  tmux kill-session -t piper-mon
-  PIKA_ROS_SETUP=/home/piper/pika_ros/install/setup.zsh bash /home/piper/pika_ros/scripts/monitor_single_piper_tmux.bash
-  tmux attach -t piper-mon
-  # 低频监控
-  tmux kill-session -t piper-low
-  PIKA_ROS_SETUP=/home/piper/pika_ros/install/setup.zsh bash /home/piper/pika_ros/scripts/monitor_single_piper_lowfreq_tmux.bash
-  tmux attach -t piper-low
-
-# 
-终端1：
-Plain Text
-复制代码
-1
-roscore
-终端2：
-Plain Text
-复制代码
-1
-2
-3
-conda deactivate
-source ~/pika_ros/install/setup.bash
-cd ~/pika_ros/scripts && bash start_multi_sensor.bash sensor
-终端3：
-Plain Text
-复制代码
-1
-2
-3
-conda deactivate
-source ~/pika_ros/install/setup.bash
-cd ~/pika_ros/scripts && bash start_multi_gripper.bash gripper sensor
-终端4：
-Plain Text
-复制代码
-1
-2
-3
-source ~/pika_ros/install/setup.bash
-conda activate pika
-roslaunch pika_remote_piper teleop_rand_multi_piper.launch
-
-
-
-  终端 1
-
-  roscore
-
-  终端 2：双 sensor
-
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  cd ~/pika_ros/scripts
-  bash start_multi_sensor.bash sensor
-
-  终端 3：双 gripper
-
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  cd ~/pika_ros/scripts
-  bash start_multi_gripper.bash gripper sensor
-
-  终端 4：双臂 teleop
-
-  conda activate pika
-  source ~/pika_ros/install/setup.zsh
-  roslaunch pika_remote_piper teleop_rand_multi_piper.launch
-
-  PIKA_ROS_SETUP=/home/piper/pika_ros/install/setup.zsh bash /home/piper/pika_ros/scripts/monitor_dual_piper_lowfreq_tmux.bash
-  tmux attach -t piper-dual-low
-
-rosservice call /teleop_trigger_l "{}"
-rosservice call /teleop_trigger_r "{}"
 
 
   1. 先杀掉旧 session
@@ -429,4 +387,446 @@ rosservice call /teleop_trigger "{}"
 
 
 
+    source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  rostopic echo /pika_localization_status_l
+  rostopic echo /pika_localization_status_r
+
+
+
+
+   我这边也做了 roslaunch --nodes 校验，launch 可以正常解析。
+
+  如果你的 D435 话题名就是默认这组：
+
+  - /d435/color/image_raw
+  - /d435/color/camera_info
+
+  那双臂遥操作采集直接这样起：
+
+  source ~/pika_ros/install/setup.bash
+  roslaunch data_tools run_data_capture_multi_pika_teleop_d435.launch \
+    useService:=true \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=0
+
+  如果你的 D435 话题不是这个名字，先查一下：
+
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  rostopic list | grep -E 'color/image_raw|color/camera_info'
+
+  然后把真实话题传进去，比如：
+
+  source ~/pika_ros/install/setup.bash
+  roslaunch data_tools run_data_capture_multi_pika_teleop_d435.launch \
+    useService:=true \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=0 \
+    d435_name:=myD435 \
+    d435_frame:=camera_color_optical_frame \
+    d435_color_topic:=/camera/color/image_raw \
+    d435_color_info_topic:=/camera/color/camera_info
+
+  单臂版本同理：
+
+  source ~/pika_ros/install/setup.bash
+  roslaunch data_tools run_data_capture_single_pika_teleop_d435.launch \
+    useService:=true \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=0 \
+    d435_name:=myD435 \
+    d435_frame:=camera_color_optical_frame \
+    d435_color_topic:=/camera/color/image_raw \
+    d435_color_info_topic:=/camera/color/camera_info
+
+  补充两点：
+
+  - 我这边当前运行时没有扫到现成的 D435 ROS 话题，所以你启动前最好先用 rostopic
+    list 确认真实话题名。
+  - 这版只额外保存了 D435 的彩色画面。如果你还想把 D435 的深度图一起存进去，我可以
+    在不动原文件的前提下再给你加一套 depth 版 launch。
+
+
+
+# D435
+  pika_ros/install/share/data_tools/launch/run_data_capture_multi_pika_teleop_with_d435.launch
+
+# 校准基站
+
+cd ~/pika_ros/install/lib && ./survive-cli --force-calibrate
+
+# 校准手
+python3 /home/piper/pika_ros/scripts/setup_device.py --calibrate_base
+
+# 检查相机
+  ls -l /dev/ttyUSB50 /dev/ttyUSB51 /dev/ttyUSB60 /dev/ttyUSB61 /dev/video50 /dev/video51 /dev/video60 /dev/video61
+  udevadm info /dev/ttyUSB50 | grep DEVPATH
+  udevadm info /dev/ttyUSB51 | grep DEVPATH
+  udevadm info /dev/ttyUSB60 | grep DEVPATH
+  udevadm info /dev/ttyUSB61 | grep DEVPATH
+  udevadm info /dev/video50  | grep DEVPATH
+  udevadm info /dev/video51  | grep DEVPATH
+  udevadm info /dev/video60  | grep DEVPATH
+  udevadm info /dev/video61  | grep DEVPATH
+cd ~/pika_ros/src/PikaAnyArm/piper/piper_ros
+bash can_config.sh
+
+
+
+
+
+
+
+
+lsusb
+  启动方式：
+
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  /usr/bin/python3 ~/pika_ros/scripts/foot_pedal_capture_toggle.py
+
+  或者用包装脚本：
+
+  bash ~/pika_ros/scripts/start_foot_pedal_capture_toggle.bash
+
+  如果你要指定数据集目录：
+
+  bash ~/pika_ros/scripts/start_foot_pedal_capture_toggle.bash $HOME/agilex/data
+
+在你正常启动完 s1 s2 s3 s4 之后，现在只需要再开两个终端。
+
+  终端 5：启动录制服务和 D435
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435.launch \
+    serial_no:=817412070803 \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=0 \
+    useService:=true
+
+  终端 6：启动脚踏板采集控制
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  bash ~/pika_ros/scripts/start_foot_pedal_capture_toggle.bash $HOME/agilex/data
+
+  然后你就用右踏板 KEY_C 控制：
+
+  - 踩一下：开始采集
+  - 再踩一下：结束采集
+
+  左踏板和中踏板现在不做任何事。
+
+  如果你想看脚踏板控制日志，就看终端 6。正常会打印类似：
+
+  - Listening to foot pedal device: ...
+  - Right pedal pressed. Requesting capture start for episodeN.
+  - Capture started successfully: episodeN
+  - Right pedal pressed. Requesting capture stop.
+  - Capture stopped successfully.
+
+  如果你想看录制本体是否真的在写数据，就看终端 5。
+  另外也可以随时检查目录：
+
+  ls -d $HOME/agilex/data/episode*
+
+  如果你要更稳一点，我建议你在开始正式录之前先确认脚踏板设备路径存在：
+
+  ls -l /dev/input/by-id/usb-PCsensor_FootSwitch-event-kbd
+
+  如果你愿意，我可以下一条直接给你整理成一个“s1-s6 一行一行照抄”的完整清单。
+
+
+
+
+
+
+
+
+
+
+  终端 1
+
+  roscore
+
+  终端 2：双 sensor
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  cd ~/pika_ros/scripts
+  bash start_multi_sensor.bash sensor
+
+  终端 3：双 gripper
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  cd ~/pika_ros/scripts
+  bash start_multi_gripper.bash gripper sensor
+
+  终端 4：双臂 teleop
+
+  conda activate pika
+  source ~/pika_ros/install/setup.zsh
+  roslaunch pika_remote_piper teleop_rand_multi_piper.launch
+
+  PIKA_ROS_SETUP=/home/piper/pika_ros/install/setup.zsh bash /home/piper/pika_ros/scripts/monitor_dual_piper_lowfreq_tmux.bash
+  tmux attach -t piper-dual-low
+
+# 终端5:数据采集
+source ~/pika_ros/install/setup.bash 
+roslaunch data_tools run_data_capture.launch type:=single_pika datasetDir:=$HOME/agilex/data episodeIndex:=0  # 单夹持器
+roslaunch data_tools run_data_capture.launch type:=single_pika_teleop datasetDir:=$HOME/agilex/data episodeIndex:=0  # 单夹持器遥操作
+
+source ~/pika_ros/install/setup.bash 
+roslaunch data_tools run_data_capture.launch type:=multi_pika datasetDir:=$HOME/agilex/data episodeIndex:=0  # 双夹持器
+roslaunch data_tools run_data_capture.launch type:=multi_pika_teleop datasetDir:=$HOME/agilex/data episodeIndex:=0  # 双夹持器遥操作
+
+roslaunch data_tools run_data_capture.launch useService:=true type:=single_pika datasetDir:=$HOME/agilex/data episodeIndex:=0  # 单夹持器
+roslaunch data_tools run_data_capture.launch useService:=true type:=single_pika_teleop datasetDir:=$HOME/agilex/data episodeIndex:=0  # 单夹持器遥操作
+
+
+source ~/pika_ros/install/setup.bash 
+roslaunch data_tools run_data_capture.launch useService:=true type:=multi_pika datasetDir:=$HOME/agilex/data episodeIndex:=0  # 双夹持器
+roslaunch data_tools run_data_capture.launch useService:=true type:=multi_pika_teleop datasetDir:=$HOME/agilex/data episodeIndex:=0  # 双夹持器遥操作
+
+
+rosservice call /teleop_trigger_l "{}"
+rosservice call /teleop_trigger_r "{}"
+
+
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+
+  roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435.launch \
+    serial_no:=817412070803 \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=1 \
+    useService:=true
   
+  # S5
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+
+  roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435.launch \
+    serial_no:=817412070803 \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=7 \
+    useService:=true
+
+
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+
+  LAST_EPISODE=$(find "$HOME/agilex/data" -maxdepth 1 -type d -name 'episode*' -printf '%f\n' 2>/dev/null | sed 's/^episode//' | sort -n |
+  tail -1)
+  NEXT_EPISODE=${LAST_EPISODE:-0}
+  NEXT_EPISODE=$((NEXT_EPISODE + 1))
+
+  roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435.launch \
+    serial_no:=817412070803 \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=$NEXT_EPISODE \
+    useService:=true
+
+
+  终端 5：
+
+  # conda deactivate
+  # export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  # unset PYTHONHOME
+  # unset PYTHONPATH
+  # source /opt/ros/noetic/setup.zsh
+  # source ~/pika_ros/install/setup.zsh
+  # roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435.launch \
+  #   serial_no:=817412070803 \
+  #   datasetDir:=$HOME/agilex/data \
+  #   episodeIndex:=0 \
+  #   useService:=true
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435.launch \
+    serial_no:=817412070803 \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=0 \
+    useService:=true
+
+  终端 6：
+
+  # bash ~/pika_ros/scripts/start_dual_teleop_capture_sync.bash $HOME/agilex/data
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+   sudo /usr/bin/python3 ~/pika_ros/scripts/foot_pedal_capture_toggle.py --dataset-dir $HOME/agilex/data
+
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435.launch \
+    serial_no:=817412070803 \
+    datasetDir:=$HOME/agilex/data \
+    episodeIndex:=0 \
+    useService:=true
+
+  终端 6：启动脚踏板采集控制
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  bash ~/pika_ros/scripts/start_foot_pedal_capture_toggle.bash $HOME/agilex/data
+
+
+    如果你想自己指定输出路径：
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_episode_camera_video.py 4 \
+    --output ~/agilex/data/episode4/camera_overview_custom.mp4
+
+  如果你想把 depth 目录里有图的相机也一起拼进去：
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_episode_camera_video.py 4 --include-depth
+
+  如果你只想拼指定几个相机，比如 D435 加左右 gripper 彩色：
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_episode_camera_video.py 7 \
+    --only myD435 pikaGripperDepthCamera_l pikaGripperDepthCamera_r
+
+  常用可调参数还有：
+
+  --fps 20
+  --tile-width 640
+  --tile-height 480
+  --max-gap 0.25
+
+
+  # 可视化视频（图片拼接）
+  # 单个 episode：
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_episode_camera_video.py 4
+
+  # 全部 episode：
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_all_episode_videos.py
+
+# 监控d435
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  roslaunch realsense2_camera rs_camera.launch serial_no:=817412070803
+
+  再看另一个终端：
+
+  rostopic hz /camera/color/image_raw
+
+
+
+  # 10hz限制去除
+    终端 5，用新的严格版 s5：
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  bash ~/pika_ros/scripts/start_s5_pedal_strict_capture.bash $HOME/agilex/data
+
+  终端 6，继续用现有脚踏板 s6：
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  sudo -E bash ~/pika_ros/scripts/start_foot_pedal_capture_toggle.bash $HOME/agilex/data
+
+
+
+# 10hz
+  新命令这样用，原来的不改：
+
+  s5：
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  bash ~/pika_ros/scripts/start_s5_buffered_10hz_no_fisheye_capture.bash task_demo
+
+  s6：
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  sudo -E bash ~/pika_ros/scripts/start_s6_buffered_10hz_no_fisheye_capture.bash task_demo
+
+  运行后日志会写到 ~/agilex/task_demo：
+
+  - foot_pedal_capture.log
+  - capture_service.log
+  - capture_service_requests.log
+  - capture_status_hz_buffered_10hz.log
+  - buffered_capture_relay_10hz.log
+
+  我还把可视化脚本补成支持任务名了：
+
+  - 单个 episode：
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_episode_camera_video.py 3 --task-name task_demo
+
+  - 全部 episode：
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_all_episode_videos.py --task-name task_demo
+  --overwrite
+
+  - hz 分析：
+
+  /usr/bin/python3 ~/pika_ros/scripts/analyze_episode_hz.py 3 --task-name task_demo
+
+  补充：
+
+  - 这次没有把你当前未提交的 pika_ros/pipline.sh 和 usage.sh 改动带进提交。
+  - 现在工作区剩余未提交的只有这两个文件。
+
+
+    source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  /usr/bin/python3 ~/pika_ros/scripts/record_named_robot_pose.py --name my_init_pose
+
+
+  sudo systemctl restart gdm3

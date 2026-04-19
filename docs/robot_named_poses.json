@@ -118,6 +118,568 @@
           }
         }
       }
+    },
+    {
+      "name": "my_init_pose",
+      "recorded_at": "2026-04-17T20:25:45.775324",
+      "note": "joint_state is the preferred source for reset/init binding; localization_pose is recorded separately and must not be treated as arm FK pose.",
+      "arms": {
+        "l": {
+          "arm": "l",
+          "joint_state": {
+            "topic": null,
+            "data": null,
+            "status": "unavailable"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": null
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_l",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776428751,
+                "nsecs": 860383497
+              },
+              "position": {
+                "x": 0.5591087193809336,
+                "y": -0.338173877446258,
+                "z": -0.2520942554854094
+              },
+              "orientation": {
+                "x": -0.30283177683274654,
+                "y": -0.24384944260439365,
+                "z": 0.8851462454063511,
+                "w": -0.25562959242796507
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_l/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776428751,
+                "nsecs": 870677306
+              },
+              "angle": 1.6636,
+              "distance": 0.09640086240978879,
+              "effort": 48.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": false,
+              "status": "0x40",
+              "voltage": 23.799999237060547,
+              "driver_temp": 43.0,
+              "motor_temp": 38.0,
+              "bus_current": 0.0
+            }
+          }
+        },
+        "r": {
+          "arm": "r",
+          "joint_state": {
+            "topic": "/joint_states_single_r",
+            "data": {
+              "stamp": {
+                "secs": 1776428751,
+                "nsecs": 892970561
+              },
+              "name": [
+                "joint0",
+                "joint1",
+                "joint2",
+                "joint3",
+                "joint4",
+                "joint5",
+                "joint6"
+              ],
+              "position": [
+                -0.035603204,
+                0.07797468,
+                0.00505876,
+                -0.12256154400000001,
+                0.089156284,
+                -0.747457956,
+                0.0
+              ],
+              "velocity": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "effort": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "status": "ok"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": "fk_dependency_missing:No module named 'forward_inverse_kinematics'"
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_r",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776428751,
+                "nsecs": 918718260
+              },
+              "position": {
+                "x": -0.06803108018045587,
+                "y": -0.08557371313082593,
+                "z": -0.17410993850101478
+              },
+              "orientation": {
+                "x": -0.3488023236344731,
+                "y": -0.2685466561824948,
+                "z": 0.7801021935432771,
+                "w": -0.4445899235355664
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_r/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776428751,
+                "nsecs": 936990526
+              },
+              "angle": 1.6615,
+              "distance": 0.09629981220224298,
+              "effort": 97.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": false,
+              "status": "0x40",
+              "voltage": 23.899999618530273,
+              "driver_temp": 44.0,
+              "motor_temp": 37.0,
+              "bus_current": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "my_init_pose",
+      "recorded_at": "2026-04-17T20:52:01.098600",
+      "note": "joint_state is the preferred source for reset/init binding; localization_pose is recorded separately and must not be treated as arm FK pose.",
+      "arms": {
+        "l": {
+          "arm": "l",
+          "joint_state": {
+            "topic": "/joint_states_single_l",
+            "data": {
+              "stamp": {
+                "secs": 1776430321,
+                "nsecs": 257904052
+              },
+              "name": [
+                "joint0",
+                "joint1",
+                "joint2",
+                "joint3",
+                "joint4",
+                "joint5",
+                "joint6"
+              ],
+              "position": [
+                -0.22637078800000002,
+                0.215154296,
+                0.01273412,
+                0.05252388400000001,
+                0.028852376,
+                0.034242572000000006,
+                0.0
+              ],
+              "velocity": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "effort": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "status": "ok"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": "fk_dependency_missing:No module named 'forward_inverse_kinematics'"
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_l",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776430321,
+                "nsecs": 271678421
+              },
+              "position": {
+                "x": 0.674929129195308,
+                "y": -0.16783699043676845,
+                "z": -0.027100879000586886
+              },
+              "orientation": {
+                "x": -0.23894117952246846,
+                "y": -0.20330848422087378,
+                "z": 0.9037636583491883,
+                "w": -0.29117696134741494
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_l/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776430321,
+                "nsecs": 289627017
+              },
+              "angle": 1.6618,
+              "distance": 0.09631426868857798,
+              "effort": 86.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": false,
+              "status": "0x40",
+              "voltage": 23.799999237060547,
+              "driver_temp": 44.0,
+              "motor_temp": 38.0,
+              "bus_current": 0.0
+            }
+          }
+        },
+        "r": {
+          "arm": "r",
+          "joint_state": {
+            "topic": "/joint_states_single_r",
+            "data": {
+              "stamp": {
+                "secs": 1776430321,
+                "nsecs": 305255889
+              },
+              "name": [
+                "joint0",
+                "joint1",
+                "joint2",
+                "joint3",
+                "joint4",
+                "joint5",
+                "joint6"
+              ],
+              "position": [
+                -0.04886064400000001,
+                0.259270172,
+                0.012175912,
+                -0.40072356800000003,
+                0.023252852,
+                -0.41089342,
+                0.0
+              ],
+              "velocity": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "effort": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "status": "ok"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": "fk_dependency_missing:No module named 'forward_inverse_kinematics'"
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_r",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776430321,
+                "nsecs": 321709231
+              },
+              "position": {
+                "x": 0.013710433470690512,
+                "y": -0.029665712588418235,
+                "z": -0.1302159859091726
+              },
+              "orientation": {
+                "x": 0.3155720260281149,
+                "y": 0.2679331814301163,
+                "z": -0.7000748970329521,
+                "w": 0.5818257859716675
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_r/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776430321,
+                "nsecs": 337561761
+              },
+              "angle": 1.6616,
+              "distance": 0.09630462655597416,
+              "effort": 90.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": false,
+              "status": "0x40",
+              "voltage": 23.899999618530273,
+              "driver_temp": 44.0,
+              "motor_temp": 37.0,
+              "bus_current": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "my_init_pose",
+      "recorded_at": "2026-04-17T20:52:56.250882",
+      "note": "joint_state is the preferred source for reset/init binding; localization_pose is recorded separately and must not be treated as arm FK pose.",
+      "arms": {
+        "l": {
+          "arm": "l",
+          "joint_state": {
+            "topic": "/joint_states_single_l",
+            "data": {
+              "stamp": {
+                "secs": 1776430376,
+                "nsecs": 407921552
+              },
+              "name": [
+                "joint0",
+                "joint1",
+                "joint2",
+                "joint3",
+                "joint4",
+                "joint5",
+                "joint6"
+              ],
+              "position": [
+                -0.023165632000000002,
+                0.312456928,
+                -0.011896808000000002,
+                -0.07816656400000001,
+                0.007169484,
+                0.375063444,
+                0.0
+              ],
+              "velocity": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "effort": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "status": "ok"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": "fk_dependency_missing:No module named 'forward_inverse_kinematics'"
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_l",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776430376,
+                "nsecs": 421691652
+              },
+              "position": {
+                "x": 0.6769275267868134,
+                "y": -0.1719510444728991,
+                "z": -0.027066527343465735
+              },
+              "orientation": {
+                "x": -0.23675018136853895,
+                "y": -0.2065953496138607,
+                "z": 0.8992033440017825,
+                "w": -0.3044684865070645
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_l/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776430376,
+                "nsecs": 439641896
+              },
+              "angle": 1.67,
+              "distance": 0.0967070407030412,
+              "effort": -71.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": true,
+              "status": "0x40",
+              "voltage": 23.799999237060547,
+              "driver_temp": 44.0,
+              "motor_temp": 38.0,
+              "bus_current": 0.0
+            }
+          }
+        },
+        "r": {
+          "arm": "r",
+          "joint_state": {
+            "topic": "/joint_states_single_r",
+            "data": {
+              "stamp": {
+                "secs": 1776430376,
+                "nsecs": 460219383
+              },
+              "name": [
+                "joint0",
+                "joint1",
+                "joint2",
+                "joint3",
+                "joint4",
+                "joint5",
+                "joint6"
+              ],
+              "position": [
+                -0.046453372,
+                0.269265584,
+                -0.11298478800000002,
+                -0.032847052,
+                0.16608432400000003,
+                -0.82501398,
+                0.0
+              ],
+              "velocity": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "effort": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "status": "ok"
+          },
+          "fk_pose": {
+            "status": "unavailable",
+            "data": null,
+            "reason": "fk_dependency_missing:No module named 'forward_inverse_kinematics'"
+          },
+          "localization_pose": {
+            "topic": "/pika_pose_r",
+            "status": "ok",
+            "data": {
+              "frame_id": "base_link",
+              "stamp": {
+                "secs": 1776430376,
+                "nsecs": 480031041
+              },
+              "position": {
+                "x": 0.014986172367803283,
+                "y": -0.030441403158876303,
+                "z": -0.1317958859408684
+              },
+              "orientation": {
+                "x": 0.31256634966678326,
+                "y": 0.2699630769103965,
+                "z": -0.6946896098819518,
+                "w": 0.5889215228560719
+              }
+            }
+          },
+          "gripper": {
+            "topic": "/gripper/gripper_r/data",
+            "status": "ok",
+            "data": {
+              "stamp": {
+                "secs": 1776430376,
+                "nsecs": 487576418
+              },
+              "angle": 1.6685,
+              "distance": 0.0966355221729609,
+              "effort": -24.0,
+              "velocity": 0.0,
+              "enable": true,
+              "error": false,
+              "status": "0x40",
+              "voltage": 24.0,
+              "driver_temp": 44.0,
+              "motor_temp": 37.0,
+              "bus_current": 0.0
+            }
+          }
+        }
+      }
     }
   ]
 }

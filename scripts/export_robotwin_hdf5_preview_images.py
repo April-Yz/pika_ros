@@ -12,6 +12,9 @@ For each selected camera/frame, the script writes:
 Example:
 python /home/piper/pika_ros/scripts/export_robotwin_hdf5_preview_images.py \
   /home/piper/agilex/processed_robotwin/pnp_star_pear-160/episode_0/episode_0.hdf5
+
+Default output:
+- `~/agilex/robotwin_hdf5_previews/<processed_dataset_name>/<episode_name>/`
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ import numpy as np
 
 
 DEFAULT_CAMERAS = ["cam_high", "cam_left_wrist", "cam_right_wrist"]
+DEFAULT_PREVIEW_ROOT = Path.home() / "agilex" / "robotwin_hdf5_previews"
 
 
 def decode_padded_jpeg(raw_item) -> np.ndarray:
@@ -99,6 +103,12 @@ def export_previews(hdf5_path: Path, output_dir: Path, cameras: List[str], indic
     print(f"saved preview images to: {output_dir}")
 
 
+def default_output_dir_for(hdf5_path: Path) -> Path:
+    episode_dir = hdf5_path.parent
+    dataset_dir = episode_dir.parent
+    return DEFAULT_PREVIEW_ROOT / dataset_dir.name / episode_dir.name
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export preview images from processed RobotWin HDF5.")
     parser.add_argument("hdf5_path", type=str, help="Path to episode HDF5 file")
@@ -106,7 +116,7 @@ def main() -> None:
         "--output-dir",
         type=str,
         default=None,
-        help="Output directory. Default: <episode_dir>/preview_images",
+        help="Output directory. Default: ~/agilex/robotwin_hdf5_previews/<dataset>/<episode>",
     )
     parser.add_argument(
         "--camera",
@@ -126,7 +136,7 @@ def main() -> None:
     if not hdf5_path.exists():
         raise FileNotFoundError(f"HDF5 file not found: {hdf5_path}")
 
-    output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else hdf5_path.parent / "preview_images"
+    output_dir = Path(args.output_dir).expanduser().resolve() if args.output_dir else default_output_dir_for(hdf5_path)
     export_previews(hdf5_path, output_dir, args.camera or DEFAULT_CAMERAS, args.index)
 
 

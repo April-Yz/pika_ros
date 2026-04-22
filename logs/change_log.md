@@ -313,3 +313,58 @@
   - Reason: document that `KEY_A` now restores `ready_above_zero`, `KEY_B` snapshots state, and the name mapping lives in `scripts/init_poses.json`.
   - Evidence source:
     - source inspection of the updated foot pedal script and init pose config
+
+## 2026-04-22
+
+- Added Charuco hand-eye calibration tooling:
+  - `scripts/pika_charuco_handeye_calib.py`
+  - `scripts/diagnose_handeye_samples.py`
+  - `scripts/estimate_dual_base_transform.py`
+  - `scripts/pika_calibrate_head_from_wrist_boards.py`
+  - `scripts/export_calibration_bundle.py`
+  - Reason: support manual PIKA wrist-camera calibration, dual-base estimation, and Head D435 calibration from moving Charuco boards.
+  - Evidence source:
+    - `/usr/bin/python3 -m py_compile` on the new scripts
+    - offline diagnostics on saved `.npz` calibration samples
+    - live ROS topic inspection for `/gripper/camera_l`, `/gripper/camera_r`, and `/camera/color` topics
+  - Observed result:
+    - right/left wrist `try2` hand-eye residuals reached millimeter-to-centimeter level
+    - `head_d435_try2` residuals reached `translation_mean_m=0.008774` and `rotation_mean_deg=0.816`
+
+- Added calibration outputs under `calibration/handeye/`.
+  - Reason: persist the calibration results, small sample `.npz` files, bad-sample backup, and exported transform bundles for later reuse.
+  - Evidence source:
+    - `find /home/piper/pika_ros/calibration -maxdepth 4 -type f -printf '%s %p\n'`
+  - Observed result:
+    - calibration files are small, with the largest current sample file about 20 KB, so they are suitable to track.
+
+- Added `calibration/handeye/CALIBRATION_TRANSFORMS_README.md`.
+  - Reason: document the `try2` transform chain among left wrist camera, right wrist camera, left/right base frames, and Head D435.
+  - Evidence source:
+    - exported `calibration_bundle_try2.json`
+    - exported `calibration_bundle_legacy_wrist_try2_head.json`
+
+- Reorganized script documentation:
+  - moved explanation Markdown files from `scripts/*.md` to `scripts/md/`
+  - moved issue/log Markdown files from `scripts/*ISSUE_LOG*.md` to `scripts/log/`
+  - Reason: user requested separating usage docs and log documents under `scripts`.
+  - Evidence source:
+    - `find /home/piper/pika_ros/scripts -maxdepth 2 -type f -iname '*.md'`
+  - Observed result:
+    - explanatory docs now live under `scripts/md/`
+    - issue/log docs now live under `scripts/log/`
+
+- Confirmed `AGENT-READ.md` already contained the required workflow:
+  - update `logs/change_log.md`
+  - update latest analysis file
+  - commit each change set
+  - Reason for previous non-compliance: the repository-level `AGENT-READ.md` was not read before the earlier calibration edits, so those repository-specific workflow requirements were missed.
+  - Corrective action:
+    - this entry and the analysis entry below record the calibration work before committing.
+
+- Updated `analysis/piper_single_teleop_2026-04-10.md`.
+  - Reason: record the calibration tooling/results, docs reorganization, and workflow compliance finding.
+  - Evidence source:
+    - source inspection of scripts
+    - saved calibration JSON/NPZ files
+    - `AGENT-READ.md`

@@ -830,3 +830,204 @@ rosservice call /teleop_trigger_r "{}"
 
 
   sudo systemctl restart gdm3
+
+
+# 移动
+# 模拟
+SRC=/home/piper/agilex/pour
+DST=/home/piper/agilex/pnp_star_pear
+START_FROM=58
+next=$(( $(find "$DST" -maxdepth 1 -type d -name 'episode*' -printf '%f\n' | sed 's/episode//' | sort -n | tail -1) + 1 ))
+i=$next
+for s in $(find "$SRC" -maxdepth 1 -type d -name 'episode*' -printf '%f\n' | sed 's/episode//' | awk -v min="$START_FROM" '$1>=min' | sort -n); do
+  echo mv "$SRC/episode$s" "$DST/episode$i"
+  i=$((i+1))
+done
+# 执行
+SRC=/home/piper/agilex/pour
+DST=/home/piper/agilex/pnp_star_pear
+START_FROM=58
+next=$(( $(find "$DST" -maxdepth 1 -type d -name 'episode*' -printf '%f\n' | sed 's/episode//' | sort -n | tail -1) + 1 ))
+i=$next
+for s in $(find "$SRC" -maxdepth 1 -type d -name 'episode*' -printf '%f\n' | sed 's/episode//' | awk -v min="$START_FROM" '$1>=min' | sort -n); do
+  mv "$SRC/episode$s" "$DST/episode$i"
+  i=$((i+1))
+done
+
+
+
+# 人手数据
+
+ 这个版本符合你这次的要求：
+
+  - 不改 s5/s6
+  - 只录 D435 的 rgb + depth
+  - 只用脚踏板最右边 KEY_C 开始/结束
+  - 左、中的踏板完全忽略
+  - 数据按 task/episode* 保存
+
+  之所以还是用了 ROS topic，而不是 pyrealsense2 直连，是因为你这台机器当前环境里没有 pyrealsense2，这条路反而更麻烦。现在这个方案是本地最简单、能
+  直接跑通的。
+
+  启动方式分两步。
+
+  # 先单独打开 D435，注意这次要开 depth 和对齐：
+
+  # roslaunch realsense2_camera rs_camera.launch \
+  #   serial_no:=817412070803 \
+  #   camera:=camera \
+  #   tf_prefix:=camera \
+  #   enable_color:=true \
+  #   enable_depth:=true \
+  #   align_depth:=true \
+  #   enable_pointcloud:=false \
+  #   enable_infra:=false \
+  #   enable_infra1:=false \
+  #   enable_infra2:=false \
+  #   color_width:=640 color_height:=480 color_fps:=30 \
+  #   depth_width:=640 depth_height:=480 depth_fps:=30
+
+  # # 再开录制脚本：
+
+  # conda deactivate
+  # export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  # unset PYTHONHOME
+  # unset PYTHONPATH
+  # source /opt/ros/noetic/setup.zsh
+  # source ~/pika_ros/install/setup.zsh
+  # sudo -E /usr/bin/python3 ~/pika_ros/scripts/record_head_d435_rgbd_with_pedal.py --task-name pour_head
+
+
+# s7：只启动 D435
+
+  roslaunch realsense2_camera rs_camera.launch \
+    serial_no:=817412070803 \
+    camera:=camera \
+    tf_prefix:=camera \
+    enable_color:=true \
+    enable_depth:=true \
+    align_depth:=true \
+    enable_pointcloud:=false \
+    enable_infra:=false \
+    enable_infra1:=false \
+    enable_infra2:=false \
+    color_width:=640 color_height:=480 color_fps:=30 \
+    depth_width:=640 depth_height:=480 depth_fps:=30
+
+  # s8：只启动脚踏板录制器
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+
+  sudo -E env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+  /usr/bin/python3 ~/pika_ros/scripts/record_head_d435_rgbd_with_pedal.py \
+    --task-name pour \
+    --dataset-root ~/agilex/human \
+    --camera-ns camera \
+    --rgb-topic /camera/color/image_raw \
+    --depth-topic /camera/aligned_depth_to_color/image_raw \
+    --rgb-info-topic /camera/color/camera_info \
+    --depth-info-topic /camera/aligned_depth_to_color/camera_info \
+    --device /dev/input/by-id/usb-PCsensor_FootSwitch-event-kbd
+
+  说明：
+
+  - 右脚踏板 KEY_C 按一下开始，再按一下结束
+  - 数据保存到 ~/agilex/human/pour/episodeN
+
+  一键启动
+
+  直接用这个：
+
+  bash ~/pika_ros/scripts/start_head_d435_rgbd_pedal.sh pour
+
+  如果你要换任务名，比如 pick_place：
+
+  bash ~/pika_ros/scripts/start_head_d435_rgbd_pedal.sh pick_place
+
+  这个一键脚本会自动：
+
+  - 起 D435
+  - 等待 topic 就绪
+  - 起脚踏板录制器
+  - 保存到 ~/agilex/human/<task_name>/episodeN
+
+  - 相机内参 camera_info.json
+  - episode 元信息 head_d435_rgbd_meta.json
+
+  关于 depth 单位：
+
+  - 这个脚本默认按 RealSense 常见格式处理：16UC1 原始深度通常是毫米 mm
+  - 同时额外保存一份 *_meters.npy，单位是米 m
+  - 所以你既有原始 depth 图，也有精确尺度的米制深度
+
+
+
+  # 可视化所有频率
+  你可以直接运行（全任务）：
+/usr/bin/python3 ~/pika_ros/scripts/analyze_task_episode_hz_minmax.py --task-name pnp_star_pear --skip-missing
+
+你也可以只看部分 episode：
+/usr/bin/python3 ~/pika_ros/scripts/analyze_task_episode_hz_minmax.py --task-name pnp_star_pear 120 121 122 --skip-missing
+
+
+  conda create -n robotwin-data python=3.10 -y && conda activate robotwin-data && conda install -c conda-forge numpy h5py opencv scipy pyyaml -y
+
+#  指定输出目录的命令可以直接用这个：
+  python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
+    /home/piper/agilex/pnp_star_pear \
+    "Pick up the starfruit and the pear, then place them onto the blue plate." \
+    160 \
+    --output-dir /home/piper/agilex/processed_robotwin/pnp_star_pear-160
+
+
+  # 内容检查脚本也已经加好了，在 pika_ros/scripts/check_processed_robotwin_headcam.py。用法例子：
+
+  python /home/piper/pika_ros/scripts/check_processed_robotwin_headcam.py \
+    /home/piper/agilex/processed_robotwin/pnp_star_pear-50 \
+    --episode 0
+
+  # 如果你想连续抽查几个 episode：
+
+  for i in 0 1 2; do
+    python /home/piper/pika_ros/scripts/check_processed_robotwin_headcam.py \
+      /home/piper/agilex/processed_robotwin/pnp_star_pear-50 \
+      --episode $i
+  done
+
+
+
+rclone copy  /home/piper/agilex/pour gdrive_yzj:piper/pour-blue  -P 
+
+rclone copy  /home/piper/agilex/processed_robotwin/pnp_star_pear-160 gdrive_yzj:piper/pnp_star_pear-129 -P --dry-run
+
+tar -czvf pnp_star_pear-129.tar.gz /home/piper/agilex/processed_robotwin/pnp_star_pear-160
+rclone copy  /home/piper/agilex/processed_robotwin/pnp_star_pear-129.tar.gz gdrive_yzj:piper/129-pnp_star_pear/ -P --dry-run
+
+
+
+# 解码hdf5中的图片
+RGB VS BGR
+ - *_decoded.jpg：按 OpenCV 正常解码后的图片
+  - *_channel_swapped.jpg：红蓝通道交换后的图片
+  - *_compare.jpg：左右对比图，左边是正常解码，右边是红蓝交换
+
+  如果黄色在 channel_swapped 里正常、在 decoded 里不正常，那就是 RGB/BGR 通道顺序问题。
+
+  指定某一帧也可以：
+
+  python /home/piper/pika_ros/scripts/export_robotwin_hdf5_preview_images.py \
+    /home/piper/agilex/processed_robotwin/pnp_star_pear-160/episode_0/episode_0.hdf5 \
+    --index 0 --index 20 --index -1
+
+  只导出头部相机：
+
+  python /home/piper/pika_ros/scripts/export_robotwin_hdf5_preview_images.py \
+    /home/piper/agilex/processed_robotwin/pnp_star_pear-160/episode_0/episode_0.hdf5 \
+    --camera cam_high
+
+bash ~/pika_ros/scripts/render_human_episode_videos.sh pnp_star_pear /home/piper/agilex/human

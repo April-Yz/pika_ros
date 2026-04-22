@@ -556,3 +556,56 @@ Runtime evidence source:
   - `install/share/pika_remote_piper/scripts/teleop_piper_publish.py`
   - `scripts/foot_pedal_capture_toggle.py`
   - `scripts/init_poses.json`
+
+## 2026-04-22 Charuco Hand-Eye Calibration And Documentation Cleanup
+
+Confirmed:
+
+- New ROS1/Noetic Charuco calibration helpers were added under `scripts/`:
+  - `pika_charuco_handeye_calib.py`
+  - `diagnose_handeye_samples.py`
+  - `estimate_dual_base_transform.py`
+  - `pika_calibrate_head_from_wrist_boards.py`
+  - `export_calibration_bundle.py`
+- Saved calibration results under `calibration/handeye/` are small enough to track in Git.
+- The successful `try2` calibration set currently includes:
+  - `left_wrist_try2_eye_in_hand.json`
+  - `right_wrist_try2_eye_in_hand.json`
+  - `left_base_T_right_base_try2.json`
+  - `head_d435_try2_head_from_wrist.json`
+  - `calibration_bundle_try2.json`
+- Head D435 `try2` calibration completed with:
+  - `sample_count=27`
+  - `translation_mean_m=0.008774`
+  - `translation_max_m=0.014875`
+  - `rotation_mean_deg=0.816`
+  - `rotation_max_deg=1.694`
+- `scripts` Markdown files were reorganized:
+  - explanatory docs now under `scripts/md/`
+  - issue/log docs now under `scripts/log/`
+
+Still only a hypothesis:
+
+- The `try2` calibration should improve downstream 3D fusion, but it still needs an end-to-end runtime validation by projecting known board/camera points through the generated transform bundle.
+- The mixed legacy bundle is only for comparison because it combines legacy wrist/base results with the `try2` head result. A strictly consistent legacy head result requires rerunning `pika_calibrate_head_from_wrist_boards.py` with legacy inputs.
+
+Workflow compliance finding:
+
+- `AGENT-READ.md` already required every code/doc change to update `logs/change_log.md`, update the latest analysis file, and make a Git commit.
+- The earlier calibration edits did not follow that workflow because the repository-level `AGENT-READ.md` was not read before making those edits.
+- Corrective action for this change set:
+  - read `AGENT-READ.md`
+  - appended `logs/change_log.md`
+  - appended this analysis section
+  - prepared the full calibration/documentation change set for commit
+
+Runtime and file evidence:
+
+- `/usr/bin/python3 -m py_compile` passed for the new calibration scripts.
+- `/usr/bin/python3 ~/pika_ros/scripts/diagnose_handeye_samples.py ...` confirmed old bad data had constant FK and `try2` samples had sufficient FK motion.
+- `/usr/bin/python3 ~/pika_ros/scripts/estimate_dual_base_transform.py ...` generated:
+  - `left_base_T_right_base.json`
+  - `left_base_T_right_base_try2.json`
+- `/usr/bin/python3 ~/pika_ros/scripts/export_calibration_bundle.py ...` generated:
+  - `calibration_bundle_try2.json`
+  - `calibration_bundle_legacy_wrist_try2_head.json`

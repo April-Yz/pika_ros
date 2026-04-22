@@ -150,6 +150,16 @@ bash can_config.sh
   source ~/pika_ros/install/setup.zsh
   bash ~/pika_ros/scripts/start_s5_buffered_10hz_no_fisheye_capture.bash pour
 
+
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  bash ~/pika_ros/scripts/start_s5_buffered_10hz_no_fisheye_capture.bash pnp_star_pear
+
   s6：
 
   conda deactivate
@@ -161,6 +171,15 @@ bash can_config.sh
   sudo -E bash ~/pika_ros/scripts/start_s6_buffered_10hz_no_fisheye_capture.bash pour
 
 
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+  sudo -E bash ~/pika_ros/scripts/start_s6_buffered_10hz_no_fisheye_capture.bash pnp_star_pear
+
+
 
   ### 
     # - 单个 episode：
@@ -168,6 +187,8 @@ bash can_config.sh
 
   # - 全部 episode：
   /usr/bin/python3 ~/pika_ros/scripts/render_all_episode_videos.py --task-name pour --overwrite
+
+  /usr/bin/python3 ~/pika_ros/scripts/render_all_episode_videos.py --task-name pnp_star_pear
 
   # - hz 分析（单个 episode）：
   /usr/bin/python3 ~/pika_ros/scripts/analyze_episode_hz.py 3 --task-name pour
@@ -178,9 +199,47 @@ bash can_config.sh
 
   # - hz 分析（整个任务目录）：
   /usr/bin/python3 ~/pika_ros/scripts/analyze_episode_hz.py --task-name pour
+  /usr/bin/python3 ~/pika_ros/scripts/analyze_episode_hz.py --task-name pnp_star_pear
 
+  bash ~/pika_ros/scripts/start_head_d435_rgbd_pedal.sh pnp_star_pear
 
-
+# RCLONE 同步数据到云盘（待测）
 rclone copy  /home/piper/agilex/pour gdrive_yzj:piper/pour-blue  -P # 待测
+rclone copy gdrive_yzj:piper/pi0_checkpoints/nsccp/pi05_zaijia_0420piper-129/15000   /home/piper/yzj/ckpt/15000 -P
 
 
+# s7：只启动 D435
+
+  roslaunch realsense2_camera rs_camera.launch \
+    serial_no:=817412070803 \
+    camera:=camera \
+    tf_prefix:=camera \
+    enable_color:=true \
+    enable_depth:=true \
+    align_depth:=true \
+    enable_pointcloud:=false \
+    enable_infra:=false \
+    enable_infra1:=false \
+    enable_infra2:=false \
+    color_width:=640 color_height:=480 color_fps:=30 \
+    depth_width:=640 depth_height:=480 depth_fps:=30
+
+  # s8：只启动脚踏板录制器
+
+  conda deactivate
+  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+  unset PYTHONHOME
+  unset PYTHONPATH
+  source /opt/ros/noetic/setup.zsh
+  source ~/pika_ros/install/setup.zsh
+
+  sudo -E env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+  /usr/bin/python3 ~/pika_ros/scripts/record_head_d435_rgbd_with_pedal.py \
+    --task-name pnp_star_pear \
+    --dataset-root ~/agilex/human \
+    --camera-ns camera \
+    --rgb-topic /camera/color/image_raw \
+    --depth-topic /camera/aligned_depth_to_color/image_raw \
+    --rgb-info-topic /camera/color/camera_info \
+    --depth-info-topic /camera/aligned_depth_to_color/camera_info \
+    --device /dev/input/by-id/usb-PCsensor_FootSwitch-event-kbd

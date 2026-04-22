@@ -28,16 +28,20 @@ def _bootstrap_ros_python():
 try:
     import rospy
     from data_msgs.msg import Gripper
+    from data_msgs.msg import TeleopStatus
     from data_msgs.srv import CaptureService, CaptureServiceRequest
     from geometry_msgs.msg import PoseStamped
     from sensor_msgs.msg import JointState
+    from std_srvs.srv import Trigger
 except ModuleNotFoundError:
     _bootstrap_ros_python()
     import rospy
     from data_msgs.msg import Gripper
+    from data_msgs.msg import TeleopStatus
     from data_msgs.srv import CaptureService, CaptureServiceRequest
     from geometry_msgs.msg import PoseStamped
     from sensor_msgs.msg import JointState
+    from std_srvs.srv import Trigger
 
 
 EV_KEY = 0x01
@@ -61,6 +65,10 @@ class FootPedalCaptureToggle:
         self.state_md_path = Path(args.dataset_dir).expanduser() / "foot_pedal_state_snapshot.md"
         self.init_pose_config = self._load_init_pose_config(args.init_pose_config, args.init_pose_name)
         self.init_pose_publishers = {}
+        self.teleop_status_l = None
+        self.teleop_status_r = None
+        self.teleop_trigger_l = None
+        self.teleop_trigger_r = None
 
     @staticmethod
     def _load_init_pose_config(config_path: str, requested_pose_name: str):
@@ -286,6 +294,106 @@ class FootPedalCaptureToggle:
         self._banner("STATE SNAPSHOT SAVED", banner_detail)
         rospy.loginfo("Left pedal snapshot saved to %s and %s", self.state_log_path, self.state_md_path)
 
+    @staticmethod
+    def _teleop_state_name(msg):
+        if msg is None:
+            return "idle"
+        if msg.fail and not msg.quit:
+            return "waiting"
+        if not msg.fail and not msg.quit:
+            return "active"
+        if msg.quit:
+            return "stopped"
+        return "unknown"
+
+    @classmethod
+    def _teleop_is_active(cls, msg):
+        return cls._teleop_state_name(msg) == "active"
+
+    @classmethod
+    def _teleop_is_not_active(cls, msg):
+        return cls._teleop_state_name(msg) in {"idle", "stopped"}
+
+    @classmethod
+    def _teleop_is_closed(cls, msg):
+        return cls._teleop_state_name(msg) in {"idle", "stopped"}
+
+    def teleop_status_l_callback(self, msg: TeleopStatus):
+        self.teleop_status_l = msg
+
+    def teleop_status_r_callback(self, msg: TeleopStatus):
+        self.teleop_status_r = msg
+
+    def _teleop_state_summary(self):
+        return (
+            f"left={self._teleop_state_name(self.teleop_status_l)} "
+            f"right={self._teleop_state_name(self.teleop_status_r)}"
+        )
+
+    def _wait_for_dual_teleop_state(self, expect_active: bool, timeout: float):
+        deadline = time.time() + timeout
+        while time.time() < deadline and not rospy.is_shutdown():
+            left_ok = (
+                not self._teleop_is_closed(self.teleop_status_l)
+                if expect_active
+                else self._teleop_is_closed(self.teleop_status_l)
+            )
+            right_ok = (
+                not self._teleop_is_closed(self.teleop_status_r)
+                if expect_active
+                else self._teleop_is_closed(self.teleop_status_r)
+            )
+            if left_ok and right_ok:
+                return True
+            time.sleep(0.05)
+        return False
+
+    def toggle_dual_teleop(self):
+        summary = self._teleop_state_summary()
+        left_closed = self._teleop_is_closed(self.teleop_status_l)
+        right_closed = self._teleop_is_closed(self.teleop_status_r)
+
+        if left_closed and right_closed:
+            action = "start"
+            expect_active = True
+            triggers = [("left", self.teleop_trigger_l), ("right", self.teleop_trigger_r)]
+        else:
+            action = "stop"
+            expect_active = False
+            triggers = []
+            if not left_closed:
+                triggers.append(("left", self.teleop_trigger_l))
+            if not right_closed:
+                triggers.append(("right", self.teleop_trigger_r))
+
+        self._banner("PEDAL: DUAL TELEOP REQUEST", f"{action}\n{summary}")
+        self._append_log("pedal_middle_request", f"{action} {summary}")
+
+        try:
+            for index, (side, trigger) in enumerate(triggers):
+                trigger()
+                self._append_log("pedal_middle_trigger", f"{action} {side}")
+                if index + 1 < len(triggers):
+                    time.sleep(0.05)
+        except Exception as exc:
+            detail = f"{action} trigger_failed {exc}"
+            rospy.logwarn("Dual teleop trigger failed: %s", exc)
+            self._banner("PEDAL: DUAL TELEOP FAILED", detail)
+            self._append_log("pedal_middle_failed", detail)
+            return
+
+        if self._wait_for_dual_teleop_state(expect_active, self.args.teleop_timeout):
+            final_summary = self._teleop_state_summary()
+            self._banner("DUAL TELEOP OK", f"{action}\n{final_summary}")
+            self._append_log("pedal_middle_success", f"{action} {final_summary}")
+            return
+
+        final_summary = self._teleop_state_summary()
+        detail = f"{action} timeout {final_summary}"
+        rospy.logwarn("Dual teleop state verify timeout: %s", detail)
+        self._banner("PEDAL: DUAL TELEOP VERIFY FAILED", detail)
+        self._append_log("pedal_middle_verify_failed", detail)
+
     def _get_joint_publisher(self, topic: str):
         publisher = self.init_pose_publishers.get(topic)
         if publisher is None:
@@ -456,7 +564,7 @@ class FootPedalCaptureToggle:
             return
         if code == KEY_B:
             self._append_log("pedal_key_down", "KEY_B")
-            self.snapshot_current_state()
+            self.toggle_dual_teleop()
             return
         if code == KEY_C:
             self._append_log("pedal_key_down", "KEY_C")
@@ -465,10 +573,16 @@ class FootPedalCaptureToggle:
     def run(self):
         rospy.init_node("foot_pedal_capture_toggle", anonymous=True)
         rospy.wait_for_service("/data_tools_dataCapture/capture_service")
+        rospy.wait_for_service("/teleop_trigger_l")
+        rospy.wait_for_service("/teleop_trigger_r")
         self.capture_srv = rospy.ServiceProxy("/data_tools_dataCapture/capture_service", CaptureService)
+        self.teleop_trigger_l = rospy.ServiceProxy("/teleop_trigger_l", Trigger)
+        self.teleop_trigger_r = rospy.ServiceProxy("/teleop_trigger_r", Trigger)
+        rospy.Subscriber("/teleop_status_l", TeleopStatus, self.teleop_status_l_callback, queue_size=1)
+        rospy.Subscriber("/teleop_status_r", TeleopStatus, self.teleop_status_r_callback, queue_size=1)
         self.open_device()
         rospy.loginfo(
-            "Foot pedal capture toggle ready. Left pedal(KEY_A) restores init pose. Middle pedal(KEY_B) snapshots state. Right pedal(KEY_C) toggles start/stop. dataset_dir=%s next_episode=episode%d",
+            "Foot pedal capture toggle ready. Left pedal(KEY_A) restores init pose. Middle pedal(KEY_B) toggles dual teleop. Right pedal(KEY_C) toggles start/stop. dataset_dir=%s next_episode=episode%d",
             self.args.dataset_dir,
             self.next_episode,
         )
@@ -477,7 +591,7 @@ class FootPedalCaptureToggle:
             (
                 f"device={self.device}\n"
                 f"left pedal KEY_A restores init pose '{self.init_pose_config['name']}'\n"
-                "middle pedal KEY_B snapshots current state\n"
+                "middle pedal KEY_B toggles dual teleop\n"
                 "right pedal KEY_C toggles capture\n"
                 f"next episode=episode{self.next_episode}"
             ),
@@ -500,7 +614,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=(
             "Use the left foot pedal (KEY_A) to restore a named init pose, the middle foot pedal "
-            "(KEY_B) to snapshot current robot state, and the right foot pedal (KEY_C) to toggle "
+            "(KEY_B) to toggle dual-arm teleop, and the right foot pedal (KEY_C) to toggle "
             "ROS data capture start/stop."
         )
     )
@@ -532,6 +646,12 @@ def parse_args():
         type=float,
         default=50.0,
         help="Interpolation publish rate in Hz when sending the init pose. Default: 50",
+    )
+    parser.add_argument(
+        "--teleop-timeout",
+        type=float,
+        default=2.0,
+        help="Timeout in seconds when verifying dual teleop start/stop. Default: 2.0",
     )
     return parser.parse_args()
 

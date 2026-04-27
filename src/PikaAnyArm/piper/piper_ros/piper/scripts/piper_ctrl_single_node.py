@@ -359,7 +359,8 @@ class C_PiperRosNode():
                     if (vel_all > 100): vel_all = 100
                     if (vel_all < 0): vel_all = 0
                     rospy.loginfo("vel_all: %d", vel_all)
-                    self.piper.MotionCtrl_2(0x01, 0x01, vel_all,0xad)
+                    # self.piper.MotionCtrl_2(0x01, 0x01, vel_all,0xad)
+                    self.piper.MotionCtrl_2(0x01, 0x01, 50,0x00)
                 # elif(lens == 7):
                 #     # 遍历速度列表
                 #     for i, velocity in enumerate(joint_data.velocity):
@@ -367,7 +368,8 @@ class C_PiperRosNode():
                 #             # 设置指定位置的关节速度为这个正数速度
                 #             # self.piper.SearchMotorMaxAngleSpdAccLimit(i+1,0x01)
                 #             # self.piper.MotorAngleLimitMaxSpdSet(i+1)
-                else: self.piper.MotionCtrl_2(0x01, 0x01, 50,0xad)
+                # else: self.piper.MotionCtrl_2(0x01, 0x01, 50,0xad)
+                else: self.piper.MotionCtrl_2(0x01, 0x01, 50,0x00)
             else: self.piper.MotionCtrl_2(0x01, 0x01, 50,0xad)
             
             # 给定关节角位置

@@ -311,11 +311,13 @@ class C_PiperRosNode():
         if(joint_6>80000): joint_6 = 80000
         if(joint_6<0): joint_6 = 0
         if(self.GetEnableFlag()):
-            self.piper.MotionCtrl_2(0x01, 0x01, 50,0xad)
+            # self.piper.MotionCtrl_2(0x01, 0x01, 50,0xad)
+            self.piper.MotionCtrl_2(0x01, 0x01, 50,0x00)
             self.piper.JointCtrl(joint_0, joint_1, joint_2, 
                                     joint_3, joint_4, joint_5)
             self.piper.GripperCtrl(abs(joint_6), 1000, 0x01, 0)
-            self.piper.MotionCtrl_2(0x01, 0x01, 50,0xad)
+            self.piper.MotionCtrl_2(0x01, 0x01, 50,0x00)
+            # self.piper.MotionCtrl_2(0x01, 0x01, 50,0xad)
             pass
     
     def enable_callback(self, enable_flag:Bool):

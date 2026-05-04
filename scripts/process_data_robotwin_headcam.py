@@ -34,6 +34,9 @@
 特别说明：
 - 这里明确把 `myD435` 视为 `headCam`
 - 当前 raw 数据没有独立的 action 字段，因此默认使用“下一时刻的 puppet 状态”作为 action
+- 当前支持通过参数切换 gripper 数据源：
+  - `--gripper-source robot` 使用 `pikaGripper_*`
+  - `--gripper-source sensor` 使用 `pikaSensor_*`
 - state 和 action 都采用：
   `[left_pos(3), left_euler(3), left_gripper(1), right_pos(3), right_euler(3), right_gripper(1)]`
 - 也就是每步 14 维
@@ -53,8 +56,8 @@
   - `arm/jointState/puppetLeft`
   - `arm/jointState/puppetRight`
 - 舍弃 sensor 夹爪编码器：
-  - `gripper/encoder/pikaSensor_l`
-  - `gripper/encoder/pikaSensor_r`
+  - 默认 `robot` 模式下舍弃 `gripper/encoder/pikaSensor_l`
+  - 默认 `robot` 模式下舍弃 `gripper/encoder/pikaSensor_r`
 - 舍弃 localization：
   - `localization/pose/pika_l`
   - `localization/pose/pika_r`
@@ -66,6 +69,7 @@
 - 先固定使用三路 RGB + puppet 端末端位姿 + gripper distance
 - 减少字段分支，避免把当前任务无关信息混进 state
 - 后续如果需要做异常检测、时序筛选、动作重建，再考虑把 depth、jointState、localization 作为辅助信号接回
+- 如果真实部署时需要更大的夹持冗余，可以切换到 `sensor` gripper 源
 
 示例：
 python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
@@ -79,6 +83,20 @@ python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
   "Pick up the starfruit and the pear, then place them onto the blue plate." \
   50 \
   --output-dir /home/piper/agilex/processed_robotwin/pnp_star_pear-50
+
+使用 sensor gripper：
+python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
+  /home/piper/agilex/pnp_star_pear \
+  "Pick up the starfruit and the pear, then place them onto the blue plate." \
+  50 \
+  --gripper-source sensor
+
+对比单个 episode 的 robot/sensor gripper：
+python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
+  /home/piper/agilex/pnp_star_pear \
+  "Pick up the starfruit and the pear, then place them onto the blue plate." \
+  1 \
+  --compare-gripper-episode 147
 """
 
 from __future__ import annotations
@@ -91,9 +109,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import cv2
-import h5py
 import numpy as np
+
+try:
+    import cv2
+except ModuleNotFoundError:
+    cv2 = None
+
+try:
+    import h5py
+except ModuleNotFoundError:
+    h5py = None
 
 
 HEAD_CAM_DIRNAME = "myD435"
@@ -113,8 +139,10 @@ class EpisodePaths:
     head_rgb: Path
     puppet_left_pose: Path
     puppet_right_pose: Path
-    gripper_left: Path
-    gripper_right: Path
+    gripper_robot_left: Path
+    gripper_robot_right: Path
+    gripper_sensor_left: Path
+    gripper_sensor_right: Path
 
 
 @dataclass(frozen=True)
@@ -164,6 +192,8 @@ def nearest_path(files: List[Path], target_ts: float) -> Path:
 
 
 def read_and_resize_rgb(path: Path, image_size: Tuple[int, int]) -> np.ndarray:
+    if cv2 is None:
+        raise ModuleNotFoundError("cv2 is required for image processing mode")
     image = cv2.imread(str(path), cv2.IMREAD_COLOR)
     if image is None:
         raise RuntimeError(f"Failed to read image: {path}")
@@ -174,6 +204,8 @@ def read_and_resize_rgb(path: Path, image_size: Tuple[int, int]) -> np.ndarray:
 
 
 def images_encoding(imgs: List[np.ndarray]) -> Tuple[List[bytes], int]:
+    if cv2 is None:
+        raise ModuleNotFoundError("cv2 is required for image encoding mode")
     encoded = []
     max_len = 0
     for image in imgs:
@@ -195,9 +227,19 @@ def build_episode_paths(episode_dir: Path) -> EpisodePaths:
         head_rgb=episode_dir / "camera" / "color" / HEAD_CAM_DIRNAME,
         puppet_left_pose=episode_dir / "arm" / "endPose" / "puppetLeft",
         puppet_right_pose=episode_dir / "arm" / "endPose" / "puppetRight",
-        gripper_left=episode_dir / "gripper" / "encoder" / "pikaGripper_l",
-        gripper_right=episode_dir / "gripper" / "encoder" / "pikaGripper_r",
+        gripper_robot_left=episode_dir / "gripper" / "encoder" / "pikaGripper_l",
+        gripper_robot_right=episode_dir / "gripper" / "encoder" / "pikaGripper_r",
+        gripper_sensor_left=episode_dir / "gripper" / "encoder" / "pikaSensor_l",
+        gripper_sensor_right=episode_dir / "gripper" / "encoder" / "pikaSensor_r",
     )
+
+
+def selected_gripper_paths(paths: EpisodePaths, gripper_source: str) -> Tuple[Path, Path]:
+    if gripper_source == "sensor":
+        return paths.gripper_sensor_left, paths.gripper_sensor_right
+    if gripper_source == "robot":
+        return paths.gripper_robot_left, paths.gripper_robot_right
+    raise ValueError(f"Unsupported gripper_source: {gripper_source}")
 
 
 def log_audit(log_path: Path, episode_name: str, level: str, reason: str, detail: str) -> None:
@@ -227,14 +269,27 @@ def rgb_file_counts(paths: EpisodePaths) -> Dict[str, int]:
         "cam_high": len(list_timestamped_files(paths.head_rgb, ".jpg")),
         "state_left_pose": len(list_timestamped_files(paths.puppet_left_pose, ".json")),
         "state_right_pose": len(list_timestamped_files(paths.puppet_right_pose, ".json")),
-        "state_left_gripper": len(list_timestamped_files(paths.gripper_left, ".json")),
-        "state_right_gripper": len(list_timestamped_files(paths.gripper_right, ".json")),
+        "robot_left_gripper": len(list_timestamped_files(paths.gripper_robot_left, ".json")),
+        "robot_right_gripper": len(list_timestamped_files(paths.gripper_robot_right, ".json")),
+        "sensor_left_gripper": len(list_timestamped_files(paths.gripper_sensor_left, ".json")),
+        "sensor_right_gripper": len(list_timestamped_files(paths.gripper_sensor_right, ".json")),
     }
 
 
-def check_structure(paths: EpisodePaths) -> Optional[AuditResult]:
+def check_structure(paths: EpisodePaths, gripper_source: str) -> Optional[AuditResult]:
     counts = rgb_file_counts(paths)
-    missing = [name for name, count in counts.items() if count <= 1]
+    required = [
+        "cam_left_wrist",
+        "cam_right_wrist",
+        "cam_high",
+        "state_left_pose",
+        "state_right_pose",
+    ]
+    if gripper_source == "sensor":
+        required.extend(["sensor_left_gripper", "sensor_right_gripper"])
+    else:
+        required.extend(["robot_left_gripper", "robot_right_gripper"])
+    missing = [name for name in required if counts[name] <= 1]
     if missing:
         detail = ", ".join([f"{name}={counts[name]}" for name in missing])
         return AuditResult(
@@ -315,14 +370,15 @@ def valid_episode_dirs(dataset_dir: Path) -> List[Path]:
     return [path for _, path in sorted(candidates)]
 
 
-def align_episode(paths: EpisodePaths, image_size: Tuple[int, int]) -> Tuple[np.ndarray, np.ndarray, Dict[str, List[np.ndarray]]]:
+def align_episode(paths: EpisodePaths, image_size: Tuple[int, int], gripper_source: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, List[np.ndarray]]]:
     left_rgb_files = list_timestamped_files(paths.left_wrist_rgb, ".jpg")
     right_rgb_files = list_timestamped_files(paths.right_wrist_rgb, ".jpg")
     head_rgb_files = list_timestamped_files(paths.head_rgb, ".jpg")
     left_pose_files = list_timestamped_files(paths.puppet_left_pose, ".json")
     right_pose_files = list_timestamped_files(paths.puppet_right_pose, ".json")
-    left_gripper_files = list_timestamped_files(paths.gripper_left, ".json")
-    right_gripper_files = list_timestamped_files(paths.gripper_right, ".json")
+    left_gripper_path, right_gripper_path = selected_gripper_paths(paths, gripper_source)
+    left_gripper_files = list_timestamped_files(left_gripper_path, ".json")
+    right_gripper_files = list_timestamped_files(right_gripper_path, ".json")
 
     reference_files = head_rgb_files
     if len(reference_files) < 2:
@@ -361,6 +417,46 @@ def align_episode(paths: EpisodePaths, image_size: Tuple[int, int]) -> Tuple[np.
     return state_list, action_list, trimmed_images
 
 
+def summarize_values(values: np.ndarray) -> Dict[str, float]:
+    return {
+        "min": float(np.min(values)),
+        "max": float(np.max(values)),
+        "mean": float(np.mean(values)),
+        "std": float(np.std(values)),
+    }
+
+
+def compare_gripper_episode(paths: EpisodePaths) -> Dict[str, object]:
+    def load_series(source_path: Path) -> np.ndarray:
+        files = list_timestamped_files(source_path, ".json")
+        values = [load_gripper_json(p)[0] for p in files]
+        return np.array(values, dtype=np.float32)
+
+    robot_left = load_series(paths.gripper_robot_left)
+    robot_right = load_series(paths.gripper_robot_right)
+    sensor_left = load_series(paths.gripper_sensor_left)
+    sensor_right = load_series(paths.gripper_sensor_right)
+
+    min_left = min(len(robot_left), len(sensor_left))
+    min_right = min(len(robot_right), len(sensor_right))
+
+    left_diff = sensor_left[:min_left] - robot_left[:min_left] if min_left > 0 else np.array([], dtype=np.float32)
+    right_diff = sensor_right[:min_right] - robot_right[:min_right] if min_right > 0 else np.array([], dtype=np.float32)
+
+    result: Dict[str, object] = {
+        "episode": paths.episode_dir.name,
+        "robot_left": summarize_values(robot_left) if len(robot_left) else None,
+        "sensor_left": summarize_values(sensor_left) if len(sensor_left) else None,
+        "robot_right": summarize_values(robot_right) if len(robot_right) else None,
+        "sensor_right": summarize_values(sensor_right) if len(sensor_right) else None,
+        "left_aligned_count": int(min_left),
+        "right_aligned_count": int(min_right),
+        "left_sensor_minus_robot": summarize_values(left_diff) if len(left_diff) else None,
+        "right_sensor_minus_robot": summarize_values(right_diff) if len(right_diff) else None,
+    }
+    return result
+
+
 def save_robotwin_episode(
     save_dir: Path,
     episode_idx: int,
@@ -369,6 +465,8 @@ def save_robotwin_episode(
     action_list: np.ndarray,
     image_dict: Dict[str, List[np.ndarray]],
 ) -> None:
+    if h5py is None:
+        raise ModuleNotFoundError("h5py is required for HDF5 export mode")
     episode_save_path = save_dir / f"episode_{episode_idx}"
     episode_save_path.mkdir(parents=True, exist_ok=True)
 
@@ -417,6 +515,18 @@ def main() -> None:
         default=480,
         help="Output RGB height. Default: 480",
     )
+    parser.add_argument(
+        "--gripper-source",
+        choices=["robot", "sensor"],
+        default="robot",
+        help="Which gripper encoder source to use in state/action. Default: robot",
+    )
+    parser.add_argument(
+        "--compare-gripper-episode",
+        type=int,
+        default=None,
+        help="If set, only compare robot vs sensor gripper values for one episode index and print/save stats.",
+    )
     args = parser.parse_args()
 
     dataset_dir = Path(args.dataset_dir).expanduser().resolve()
@@ -427,6 +537,7 @@ def main() -> None:
     output_dir = Path(args.output_dir) if args.output_dir else Path("processed_data") / f"{task_name}-{args.expert_data_num}"
     output_dir.mkdir(parents=True, exist_ok=True)
     audit_log_path = output_dir / "processing_audit.jsonl"
+    comparison_log_path = output_dir / "gripper_comparison.json"
 
     print(f"read raw episodes from path: {dataset_dir}")
     print(f"task name: {task_name}")
@@ -434,6 +545,19 @@ def main() -> None:
     print(f"headCam source directory: {HEAD_CAM_DIRNAME}")
     print("rgb mapping: left wrist -> pikaGripperDepthCamera_l, right wrist -> pikaGripperDepthCamera_r, headCam -> myD435")
     print("action source: next-step puppet state")
+    print(f"gripper source: {args.gripper_source}")
+
+    if args.compare_gripper_episode is not None:
+        target_episode_dir = dataset_dir / f"episode{args.compare_gripper_episode}"
+        if not target_episode_dir.exists():
+            raise FileNotFoundError(f"Episode directory not found: {target_episode_dir}")
+        paths = build_episode_paths(target_episode_dir)
+        result = compare_gripper_episode(paths)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        with comparison_log_path.open("w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        print(f"saved gripper comparison to: {comparison_log_path}")
+        return
 
     processed = 0
     for episode_dir in valid_episode_dirs(dataset_dir):
@@ -441,7 +565,7 @@ def main() -> None:
             break
 
         paths = build_episode_paths(episode_dir)
-        structure_issue = check_structure(paths)
+        structure_issue = check_structure(paths, args.gripper_source)
         if structure_issue is not None:
             print_colored(
                 structure_issue.level,
@@ -473,7 +597,7 @@ def main() -> None:
             if hz_issue.level == "ERROR":
                 continue
 
-        state_list, action_list, image_dict = align_episode(paths, (args.image_width, args.image_height))
+        state_list, action_list, image_dict = align_episode(paths, (args.image_width, args.image_height), args.gripper_source)
         if len(state_list) == 0 or len(action_list) == 0:
             reason = "empty_state_or_action"
             detail = f"state_len={len(state_list)}, action_len={len(action_list)}"

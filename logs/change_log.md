@@ -368,3 +368,37 @@
     - source inspection of scripts
     - saved calibration JSON/NPZ files
     - `AGENT-READ.md`
+
+## 2026-05-18
+
+- Updated `scripts/md/CHARUCO_HANDEYE_CALIBRATION.md`.
+  - Reason: user requested a direct comparison between `new_table` and `try2` for left/right wrist cameras, dual-base estimation, and the two `head cam` results, and asked to append the findings to the calibration document.
+  - Evidence source:
+    - `left_wrist_try2_eye_in_hand.json`
+    - `left_wrist_new_table_eye_in_hand.json`
+    - `right_wrist_try2_eye_in_hand.json`
+    - `right_wrist_new_table_eye_in_hand.json`
+    - `left_base_T_right_base_try2.json`
+    - `left_base_T_right_base_new_table.json`
+    - `head_d435_try2_head_from_wrist.json`
+    - `head_d435_new_table_head_from_wrist.json`
+    - `head_d435_new_table_0515_head_from_wrist.json`
+    - `samples_head_d435_try2_head_from_wrist.npz`
+    - `samples_head_d435_new_table_head_from_wrist.npz`
+    - `samples_head_d435_new_table_0515_head_from_wrist.npz`
+  - Observed result:
+    - `new_table` wrist-camera residuals remained acceptable
+    - `left_base_T_right_base_new_table` differed from `try2` mainly by about `0.284 m` in lateral spacing
+    - `left_base_T_head_camera` for the two `new_table` runs differed noticeably from `try2`, consistent with changed base placement plus indirect calibration-chain error accumulation
+
+- Updated `analysis/piper_single_teleop_2026-04-10.md`.
+  - Reason: record what the `new_table` vs `try2` comparison confirmed and what remains an inference about head-camera orientation drift.
+  - Evidence source:
+    - same calibration JSON/NPZ files listed above
+# 2026-05-11 teleop speed and acceleration limit
+
+- Updated original dual Piper teleop execution node `src/PikaAnyArm/piper/piper_ros/piper/scripts/piper_start_ms_node.py`.
+- Set active `MotionCtrl_2` speed field from `50` to `20` for both joint-control and pose-control paths.
+- Added startup-only `JointMaxAccConfig(motor_num, 100)` for joints 1-6 when `mode == 1`.
+- `100` is in SDK units of `0.01 rad/s^2`, equal to `1.0 rad/s^2`.
+- Added detailed note: `logs/teleop_speed_acc_2026-05-11.md`.

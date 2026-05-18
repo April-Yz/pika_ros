@@ -609,3 +609,54 @@ Runtime and file evidence:
 - `/usr/bin/python3 ~/pika_ros/scripts/export_calibration_bundle.py ...` generated:
   - `calibration_bundle_try2.json`
   - `calibration_bundle_legacy_wrist_try2_head.json`
+
+## 2026-05-18 New Table vs Try2 Calibration Comparison
+
+Confirmed:
+
+- `new_table` left wrist remained usable, but compared with `try2`:
+  - residuals shifted from lower translation / higher rotation consistency tradeoffs
+  - pose delta vs `try2` was about `10.8 mm` and `1.90 deg`
+- `new_table` right wrist remained close to `try2`:
+  - pose delta vs `try2` was about `2.9 mm` and `1.85 deg`
+- `left_base_T_right_base_new_table` differed from `left_base_T_right_base_try2` mainly in translation:
+  - about `0.284 m` total shift
+  - dominant component along the inter-arm spacing axis
+  - about `1.89 deg` rotation difference
+- Two `new_table` head-camera calibrations were both internally good:
+  - `head_d435_new_table_head_from_wrist.json`
+  - `head_d435_new_table_0515_head_from_wrist.json`
+  - both had sub-centimeter mean translation residuals and sub-degree mean rotation residuals
+- Relative to `head_d435_try2`, the `left_base_T_head_camera` result changed significantly:
+  - `try2 -> new_table`: about `0.162 m`, `7.35 deg`
+  - `try2 -> new_table_0515`: about `0.123 m`, `5.60 deg`
+
+What this supports:
+
+- The user's observation that `new_table` head-camera orientation appears different is real in the `left_base` reference frame.
+- This does not by itself prove the physical head camera was moved.
+- A substantial part of the difference is explained by:
+  - the base layout changing materially between `try2` and `new_table`
+  - the head-camera calibration being indirect, so wrist/base/FK/Charuco errors accumulate into `left_base_T_head_camera`
+
+Still only an inference:
+
+- Without a shared table-fixed world reference, we cannot conclude exactly how much of the `5.6-7.35 deg` head-camera orientation difference is due to:
+  - actual head-camera motion
+  - changed base orientation relative to the table
+  - accumulated indirect calibration-chain error
+
+Evidence source:
+
+- `left_wrist_try2_eye_in_hand.json`
+- `left_wrist_new_table_eye_in_hand.json`
+- `right_wrist_try2_eye_in_hand.json`
+- `right_wrist_new_table_eye_in_hand.json`
+- `left_base_T_right_base_try2.json`
+- `left_base_T_right_base_new_table.json`
+- `head_d435_try2_head_from_wrist.json`
+- `head_d435_new_table_head_from_wrist.json`
+- `head_d435_new_table_0515_head_from_wrist.json`
+- `samples_head_d435_try2_head_from_wrist.npz`
+- `samples_head_d435_new_table_head_from_wrist.npz`
+- `samples_head_d435_new_table_0515_head_from_wrist.npz`

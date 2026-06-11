@@ -26,6 +26,14 @@ def parse_args():
         help="Task subdirectory under --dataset-root. Default: data",
     )
     parser.add_argument(
+        "--episode-subdir",
+        default=None,
+        help=(
+            "Optional episode subdirectory under the dataset root, such as unprocessed/good. "
+            "If omitted, the script auto-detects unprocessed first and otherwise falls back to the dataset root."
+        ),
+    )
+    parser.add_argument(
         "--output-name",
         default="camera_overview.mp4",
         help="Output file name inside each episode directory.",
@@ -44,8 +52,17 @@ def parse_args():
 
 def resolve_dataset_dir(args):
     if args.dataset_dir:
-        return Path(args.dataset_dir).expanduser()
-    return (Path(args.dataset_root).expanduser() / args.task_name)
+        base = Path(args.dataset_dir).expanduser()
+    else:
+        base = Path(args.dataset_root).expanduser() / args.task_name
+
+    if args.episode_subdir:
+        return base / args.episode_subdir
+
+    unprocessed = base / "unprocessed"
+    if unprocessed.is_dir():
+        return unprocessed
+    return base
 
 
 def episode_sort_key(path: Path):

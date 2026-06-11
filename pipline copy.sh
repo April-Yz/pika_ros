@@ -4,15 +4,13 @@ tmux at -t s1
 tmux at -t s2
 
 
-# ========= 0. 启动前检查 =========
-
 # U1 校准基站
 cd ~/pika_ros/install/lib && ./survive-cli --force-calibrate
 
 # 校准手 (不做)
 # python3 /home/piper/pika_ros/scripts/setup_device.py --calibrate_base
 
-# 检查相机 / USB / CAN 口
+# 检查相机各类usb can口
   ls -l /dev/ttyUSB50 /dev/ttyUSB51 /dev/ttyUSB60 /dev/ttyUSB61 /dev/video50 /dev/video51 /dev/video60 /dev/video61
   udevadm info /dev/ttyUSB50 | grep DEVPATH
   udevadm info /dev/ttyUSB51 | grep DEVPATH
@@ -24,10 +22,8 @@ cd ~/pika_ros/install/lib && ./survive-cli --force-calibrate
   udevadm info /dev/video61  | grep DEVPATH
 cd ~/pika_ros/src/PikaAnyArm/piper/piper_ros
 bash can_config.sh
-
-
-# ========= 1. 基础链路（原流程保留） =========
-
+  
+  
 # 终端 1
   roscore
 
@@ -39,9 +35,9 @@ bash can_config.sh
   source /opt/ros/noetic/setup.zsh
   source ~/pika_ros/install/setup.zsh
   cd ~/pika_ros/scripts
-# 双击开始采集（会和脚踏板冲突）
+#双击开始采集（会和脚踏板冲突）
 #   bash start_multi_sensor.bash sensor
-# 若终端 5/6 使用脚踏板采集，请改用下一条；区别：关闭夹爪 Command 的自动采集切换，避免和 s5/s6 冲突
+#   若终端 5/6 使用脚踏板采集，请改用下一条；区别：关闭夹爪 Command 的自动采集切换，避免和 s5/s6 冲突
   bash start_multi_sensor_sync_capture.bash sensor
 
 # 终端 3：双 gripper
@@ -57,17 +53,10 @@ bash can_config.sh
   # 若终端 5/6 使用脚踏板采集，请改用下一条；区别：关闭夹爪 Command 的自动采集切换，避免和 s5/s6 冲突
   bash start_multi_gripper_sync_capture.bash gripper
 
-# 终端 4：双臂 teleop
+#终端 4：双臂 teleop
   conda activate pika
   source ~/pika_ros/install/setup.zsh
   roslaunch pika_remote_piper teleop_rand_multi_piper.launch
-
-
-# ========= 2. 当前推荐采集链：no_fisheye + 10Hz buffer =========
-# 说明：
-# - 这一套会忽略鱼眼保存，只保留左右手 RGB + 头部 D435 RGB。
-# - s5 现在会额外启动一个红色告警监控：开始采集后，如果左右手 / D435 RGB topic 缺失，会直接在 s5 终端打印红字。
-# - 当前这套仍然会保留左右手 depth 的上游发布与 dataCapture 订阅。
 
 # # 终端s5
 # #   - 启动 D435 的 ROS 节点
@@ -178,7 +167,7 @@ bash can_config.sh
 
 pnp_bread 123 6 7 删
 
-  ### 可视化 / 频率分析
+  ### 
     # - 单个 episode：
   /usr/bin/python3 ~/pika_ros/scripts/render_episode_camera_video.py 3 --task-name pour
 
@@ -199,65 +188,6 @@ pnp_bread 123 6 7 删
   /usr/bin/python3 ~/pika_ros/scripts/analyze_episode_hz.py --task-name pour
   /usr/bin/python3 ~/pika_ros/scripts/analyze_episode_hz.py --task-name pnp_star_pear
   /usr/bin/python3 ~/pika_ros/scripts/analyze_episode_hz.py --task-name pnp_bread
-
-
-# ========= 3. 新方案：no_depth（尽量不改旧代码，单独新脚本） =========
-# 目标：
-# - 不再采集 / 转发 / 保存左右手 depth。
-# - s5/s6 仍然按任务名写入到 ~/agilex/<task_name>/unprocessed。
-# - 想真正降低机器压力时，终端 2/3 也建议切到 no_depth 版，这样上游 realsense depth 直接不发布。
-#
-# 使用建议：
-# - 如果你只是想先验证 no_depth 数据格式是否正常，至少切换终端 5/6。
-# - 如果你想明显降低 CPU / USB / ROS 压力，终端 2/3/5/6 都切换到 no_depth。
-
-# 终端 2：双 sensor no_depth
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  cd ~/pika_ros/scripts
-  bash start_multi_sensor_sync_capture_no_depth.bash sensor
-
-# 终端 3：双 gripper no_depth
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  cd ~/pika_ros/scripts
-  bash start_multi_gripper_sync_capture_no_depth.bash gripper
-
-# 终端 4：双臂 teleop
-  conda activate pika
-  source ~/pika_ros/install/setup.zsh
-  roslaunch pika_remote_piper teleop_rand_multi_piper.launch
-
-# 终端 5：s5 no_depth
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  bash ~/pika_ros/scripts/start_s5_buffered_10hz_no_depth_capture.bash handover_bottle_0609
-
-# 终端 6：s6 no_depth
-  conda deactivate
-  export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-  unset PYTHONHOME
-  unset PYTHONPATH
-  source /opt/ros/noetic/setup.zsh
-  source ~/pika_ros/install/setup.zsh
-  sudo -E bash ~/pika_ros/scripts/start_s6_buffered_10hz_no_depth_capture.bash handover_bottle_0609
-
-
-
-
-
 
   bash ~/pika_ros/scripts/start_head_d435_rgbd_pedal.sh pnp_star_pear
 
@@ -490,30 +420,8 @@ unset PYTHONPATH
 source /opt/ros/noetic/setup.zsh
 source ~/pika_ros/install/setup.zsh
 
-sudo -E /usr/bin/python3 ~/pika_ros/scripts/record_head_d435_rgbd_with_pedal.py --task-name handover_bottle
-
-
-conda deactivate
-export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-unset PYTHONHOME
-unset PYTHONPATH
-source /opt/ros/noetic/setup.zsh
-source ~/pika_ros/install/setup.zsh
-
 sudo -E /usr/bin/python3 ~/pika_ros/scripts/record_head_d435_rgbd_with_pedal.py --task-name pnp_bread
 
-conda deactivate
-export PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH
-unset PYTHONHOME
-unset PYTHONPATH
-source /opt/ros/noetic/setup.zsh
-source ~/pika_ros/install/setup.zsh
-
-sudo -E /usr/bin/python3 ~/pika_ros/scripts/record_head_d435_rgbd_with_pedal.py --task-name pnp_tray
-
 # 人手数据
-  # bash ~/pika_ros/scripts/render_human_episode_videos.sh pick_diverse_bottles /home/piper/agilex/human /home/piper/agilex/human/pick_diverse_bottles/videos
-  bash ~/pika_ros/scripts/render_human_episode_videos.sh pick_diverse_bottles /home/piper/agilex/human /home/piper/agilex/hand/pick_diverse_bottles/videos
+  bash ~/pika_ros/scripts/render_human_episode_videos.sh pnp_bread /home/piper/agilex/human /home/piper/agilex/human/pnp_bread/videos
 
-
-rclone copy  /home/piper/agilex/human/pick_diverse_bottles-human-101.zip  gdrive_yzj:piper/human/pick_diverse_bottles/ -P --dry-run

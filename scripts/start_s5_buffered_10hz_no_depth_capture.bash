@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../install/setup.bash"
 
 /usr/bin/python3 "$SCRIPT_DIR/capture_status_hz_logger.py" \
   --dataset-dir "$TASK_DIR" \
-  --output-name capture_status_hz_buffered_10hz.log &
+  --output-name capture_status_hz_buffered_10hz_no_depth.log &
 LOGGER_PID=$!
 
 /usr/bin/python3 "$SCRIPT_DIR/capture_required_topics_warning.py" \
@@ -26,7 +26,7 @@ LOGGER_PID=$!
   --require-topic /buffered_capture/camera/color/image_raw &
 WARNING_PID=$!
 
-/usr/bin/python3 "$SCRIPT_DIR/buffered_capture_relay_10hz.py" \
+/usr/bin/python3 "$SCRIPT_DIR/buffered_capture_relay_10hz_no_depth.py" \
   --dataset-dir "$TASK_DIR" \
   --publish-hz 10 &
 RELAY_PID=$!
@@ -41,9 +41,9 @@ trap cleanup EXIT INT TERM
 echo "TASK_NAME=$TASK_NAME"
 echo "TASK_DIR=$TASK_DIR"
 echo "CAPTURE_DIR=$CAPTURE_DIR"
-echo "MODE=buffered_10hz_no_fisheye"
+echo "MODE=buffered_10hz_no_depth"
 
-roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435_buffered_10hz_no_fisheye.launch \
+roslaunch data_tools run_data_capture_multi_pika_teleop_with_d435_buffered_10hz_no_depth.launch \
   serial_no:="$SERIAL_NO" \
   datasetDir:="$CAPTURE_DIR" \
   episodeIndex:=0 \

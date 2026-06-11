@@ -56,13 +56,13 @@ class FootPedalCaptureToggle:
     def __init__(self, args):
         self.args = args
         self.recording = False
-        self.next_episode = self._find_next_episode(args.dataset_dir)
+        self.next_episode = self._find_next_episode(args.index_root)
         self.capture_srv = None
         self.fd = None
         self.device = None
-        self.log_path = Path(args.dataset_dir).expanduser() / "foot_pedal_capture.log"
-        self.state_log_path = Path(args.dataset_dir).expanduser() / "foot_pedal_state_snapshot.log"
-        self.state_md_path = Path(args.dataset_dir).expanduser() / "foot_pedal_state_snapshot.md"
+        self.log_path = Path(args.log_dir).expanduser() / "foot_pedal_capture.log"
+        self.state_log_path = Path(args.log_dir).expanduser() / "foot_pedal_state_snapshot.log"
+        self.state_md_path = Path(args.log_dir).expanduser() / "foot_pedal_state_snapshot.md"
         self.init_pose_config = self._load_init_pose_config(args.init_pose_config, args.init_pose_name)
         self.init_pose_publishers = {}
         self.teleop_status_l = None
@@ -472,7 +472,7 @@ class FootPedalCaptureToggle:
         dataset_path = Path(dataset_dir).expanduser()
         max_idx = -1
         if dataset_path.is_dir():
-            for entry in dataset_path.iterdir():
+            for entry in dataset_path.rglob("episode*"):
                 if not entry.is_dir() or not entry.name.startswith("episode"):
                     continue
                 suffix = entry.name[len("episode") :]
@@ -624,6 +624,16 @@ def parse_args():
         help="Foot pedal keyboard device path.",
     )
     parser.add_argument("--dataset-dir", default=os.path.expanduser("~/agilex/data"))
+    parser.add_argument(
+        "--index-root",
+        default=None,
+        help="Root used to scan all existing episode indices. Default: same as --dataset-dir",
+    )
+    parser.add_argument(
+        "--log-dir",
+        default=None,
+        help="Directory to store foot pedal logs. Default: same as --dataset-dir",
+    )
     parser.add_argument("--instructions", default="[null]")
     parser.add_argument(
         "--init-pose-config",
@@ -653,7 +663,12 @@ def parse_args():
         default=2.0,
         help="Timeout in seconds when verifying dual teleop start/stop. Default: 2.0",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.index_root is None:
+        args.index_root = args.dataset_dir
+    if args.log_dir is None:
+        args.log_dir = args.dataset_dir
+    return args
 
 
 def main():

@@ -970,6 +970,7 @@ done
   # 可视化所有频率
   你可以直接运行（全任务）：
 /usr/bin/python3 ~/pika_ros/scripts/analyze_task_episode_hz_minmax.py --task-name pnp_star_pear --skip-missing
+/usr/bin/python3 ~/pika_ros/scripts/analyze_task_episode_hz_minmax.py --task-name pnp_star_pear --skip-missing
 
 你也可以只看部分 episode：
 /usr/bin/python3 ~/pika_ros/scripts/analyze_task_episode_hz_minmax.py --task-name pnp_star_pear 120 121 122 --skip-missing
@@ -983,6 +984,13 @@ done
     "Pick up the starfruit and the pear, then place them onto the blue plate." \
     160 \
     --output-dir /home/piper/agilex/processed_robotwin/pnp_star_pear-160
+
+conda activate robotwin-data
+python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
+  /home/piper/agilex/pnp_bread \
+  "Pick up two breads, then place them onto the blue plate." \
+  147 \
+  --output-dir /home/piper/agilex/processed_robotwin/pnp_bread-147
 
 
   # 内容检查脚本也已经加好了，在 pika_ros/scripts/check_processed_robotwin_headcam.py。用法例子：
@@ -999,7 +1007,11 @@ done
       --episode $i
   done
 
+zip -r pour_old_table.zip pour/   
+rclone copy  /home/piper/agilex/pour_old_table.zip gdrive_yzj:piper/old_table/  -P 
 
+zip -r pnp_star_pear_old_table.zip pnp_star_pear/   
+rclone copy  /home/piper/agilex/pnp_star_pear_old_table.zip gdrive_yzj:piper/old_table/  -P 
 
 rclone copy  /home/piper/agilex/pour gdrive_yzj:piper/pour-blue  -P 
 
@@ -1007,6 +1019,18 @@ rclone copy  /home/piper/agilex/processed_robotwin/pnp_star_pear-160 gdrive_yzj:
 
 tar -czvf pnp_star_pear-129.tar.gz /home/piper/agilex/processed_robotwin/pnp_star_pear-160
 rclone copy  /home/piper/agilex/processed_robotwin/pnp_star_pear-129.tar.gz gdrive_yzj:piper/129-pnp_star_pear/ -P --dry-run
+
+rclone copy gdrive_yzj:piper/pi0_checkpoints/nsccp/pi05_zaijia_0420piper-129/15000   /home/piper/yzj/ckpt/15000 -P
+rclone copy gdrive_yzj:piper/pi0_checkpoints/nsccp/pi05_zaijia_0420piper-129/29999.tar.gz   /home/piper/yzj/ckpt/29999 -P
+
+rclone copy gdrive_yzj:piper/pi0_checkpoints/nsccp/pi05_zaijia_0513piper-147/pnp_bread_147/29999.tar.gz   /home/piper/yzj/ckpt/pnp_bread/29999 -P
+# piper/pi0_checkpoints/nsccp/pi05_zaijia_0420piper-129/1/
+
+zip -r  pnp_bread-01mm-147-sensor0511.zip /home/piper/agilex/processed_robotwin/pnp_bread-good-trimmed-01mm-147-sensor
+rclone copy  /home/piper/agilex/processed_robotwin/pnp_bread-01mm-147-sensor0511.zip gdrive_yzj:piper/pnp_bread-01mm-147-sensor0511/ -P --dry-run
+
+zip -r pnp_bread_bad.zip  bad/
+rclone copy  /home/piper/agilex/pnp_bread/pnp_bread_bad.zip  gdrive_yzj:piper/pnp_bread/bad/ -P --dry-run
 
 
 
@@ -1031,3 +1055,153 @@ RGB VS BGR
     --camera cam_high
 
 bash ~/pika_ros/scripts/render_human_episode_videos.sh pnp_star_pear /home/piper/agilex/human
+
+
+
+  mkdir -p /home/piper/yzj/logs
+  rosbag record -O /home/piper/yzj/logs/gripper_debug_$(date +%Y%m%d_%H%M%S).bag \
+    /pi05/gripper_r/ctrl \
+    /piper_IK_r/ctrl_end_pose \
+    /joint_states_r \
+    /joint_states_gripper_r \
+    /joint_states_single_r \
+    /gripper/gripper_r/data \
+    /puppet/arm_status
+rostopic echo -b /home/piper/yzj/logs/gripper_debug_20260423_152739.bag  -p /gripper/gripper_r/data > /home/piper/yzj/logs/gripper_r_data.csv
+
+
+
+  mkdir -p /home/piper/yzj/logs
+
+  rosbag record -O /home/piper/yzj/logs/pi05_exec_debug_$(date +%Y%m%d_%H%M%S).bag \
+    /piper_IK_l/ctrl_end_pose \
+    /piper_IK_r/ctrl_end_pose \
+    /joint_states_l \
+    /joint_states_r \
+    /joint_states_gripper_l \
+    /joint_states_gripper_r \
+    /joint_states_single_l \
+    /joint_states_single_r \
+    /joint_states_single_gripper_l \
+    /joint_states_single_gripper_r \
+    /pi05/gripper_l/ctrl \
+    /pi05/gripper_r/ctrl \
+    /gripper/gripper_l/data \
+    /gripper/gripper_r/data \
+    /sensor/gripper_l/data \
+    /sensor/gripper_r/data \
+    /puppet/arm_status
+
+
+bag=/home/piper/yzj/logs/gripper_debug_20260423_152739.bag
+out=/home/piper/yzj/logs/gripper_debug_csv
+mkdir -p "$out"
+
+while IFS= read -r topic; do
+  name=${topic#/}
+  name=${name//\//_}
+  rostopic echo -b "$bag" -p "$topic" > "$out/${name}.csv"
+done < <(rostopic list -b "$bag")
+
+
+# rosbag子文件夹
+bag=/home/piper/yzj/logs/gripper_debug_20260423_152739.bag
+root=/home/piper/yzj/logs/csv_by_bag
+
+name=$(basename "$bag" .bag)
+out="$root/$name"
+mkdir -p "$out"
+
+rostopic list -b "$bag" | while read -r topic; do
+  [ -z "$topic" ] && continue
+  safe=${topic#/}
+  safe=${safe//\//_}
+  rostopic echo -b "$bag" -p "$topic" > "$out/$safe.csv"
+done
+
+echo "完成: $out"
+
+# rosbag大表哥
+python3 -m pip install -U pandas openpyxl
+
+bag=/home/piper/yzj/logs/gripper_debug_20260423_152739.bag
+xlsx=/home/piper/yzj/logs/$(basename "$bag" .bag).xlsx
+
+python3 - "$bag" "$xlsx" <<'PY'
+import sys, io, subprocess, pandas as pd
+
+bag, xlsx = sys.argv[1], sys.argv[2]
+topics = subprocess.check_output(["rostopic", "list", "-b", bag], text=True).splitlines()
+
+used = set()
+with pd.ExcelWriter(xlsx, engine="openpyxl") as writer:
+    for t in topics:
+        raw = subprocess.check_output(
+            ["rostopic", "echo", "-b", bag, "-p", t],
+            text=True,
+            errors="ignore"
+        )
+        lines = raw.strip().splitlines()
+        if len(lines) < 2:
+            continue
+
+        df = pd.read_csv(io.StringIO(raw))
+        sheet = (t.strip("/") or "root").replace("/", "_")[:31]
+
+        base = sheet
+        i = 1
+        while sheet in used:
+            suffix = f"_{i}"
+            sheet = base[:31-len(suffix)] + suffix
+            i += 1
+
+        used.add(sheet)
+        df.to_excel(writer, index=False, sheet_name=sheet)
+
+print("完成:", xlsx)
+PY
+
+#转换数据
+bash -lc 'source /opt/ros/noetic/setup.bash && conda run -n robotwin-data python /home/piper/yzj/bag_to_xlsx_batch.py --logs-dir /home/piper/yzj/logs --output-dir /home/piper/yzj/logs/xlsx --rostopic /opt/ros/noetic/bin/rostopic --ros-python /usr/bin/python3'
+# 转换数据+overwrite
+bash -lc 'source /opt/ros/noetic/setup.bash && conda run -n robotwin-data python /home/piper/yzj/bag_to_xlsx_batch.py --logs-dir /home/piper/yzj/logs --output-dir /home/piper/yzj/logs/xlsx --rostopic /opt/ros/noetic/bin/rostopic --ros-python /usr/bin/python3 --recursive --overwrite'
+
+
+
+  自检：
+
+  /usr/bin/python3 /home/piper/yzj/src/check_pi05_s3_grippers.py --timeout 3
+
+  手动测右夹爪闭合：
+
+  rostopic pub -1 /pi05/physical_gripper_r/ctrl data_msgs/Gripper \
+  "{header: {stamp: now}, angle: 0.0, distance: 0.02, effort: 1.5, velocity: 0.2, enable: true, set_zero: false, error: false, voltage: 0.0,
+  driver_temp: 0.0, motor_temp: 0.0, bus_current: 0.0, status: 'pi05_close_once'}"
+
+  rostopic pub -1 /pi05/physical_gripper_l/ctrl data_msgs/Gripper \
+  "{header: {stamp: now}, angle: 0.0, distance: 0.02, effort: 1.5, velocity: 0.2, enable: true, set_zero: false, error: false, voltage: 0.0,
+  driver_temp: 0.0, motor_temp: 0.0, bus_current: 0.0, status: 'pi05_close_once'}"
+
+    rostopic pub -1 /pi05/physical_gripper_r/ctrl data_msgs/Gripper \
+  "{header: {stamp: now}, angle: 0.0, distance: 0.09, effort: 1.5, velocity: 0.1, enable: true, set_zero: false, error: false, voltage: 0.0,
+  driver_temp: 0.0, motor_temp: 0.0, bus_current: 0.0, status: 'pi05_close_once'}"
+
+  rostopic pub -1 /pi05/physical_gripper_l/ctrl data_msgs/Gripper \
+  "{header: {stamp: now}, angle: 0.0, distance: 0.09, effort: 1.5, velocity: 0.1, enable: true, set_zero: false, error: false, voltage: 0.0,
+  driver_temp: 0.0, motor_temp: 0.0, bus_current: 0.0, status: 'pi05_close_once'}"
+
+
+
+# ==========================
+# 校正后的颜色，sRGB 0-255
+# ==========================
+#COLORS = {
+#    "light_pink_cup": (161, 115, 107),
+#    "green_cup": (96, 13, 117),
+#    "dark_red_cup": (130, 93, 100),
+#}
+COLORS = {
+   "light_pink_cup": (175, 121, 116),
+   "green_cup": (80, 117, 109),
+   "dark_red_cup": (137, 96, 104),
+}

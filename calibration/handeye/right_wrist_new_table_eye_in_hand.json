@@ -1,0 +1,63 @@
+{
+  "board": {
+    "aruco_dict": 5,
+    "marker_length_m": 0.027,
+    "square_length_m": 0.037,
+    "squares_x": 7,
+    "squares_y": 5
+  },
+  "gripper_T_camera": {
+    "matrix": [
+      [
+        0.005901365718904872,
+        0.02684540834601945,
+        0.9996221775918075,
+        -0.13501234680848043
+      ],
+      [
+        -0.7115890713645597,
+        0.7024428614284595,
+        -0.014663558324013837,
+        -0.027382233580855064
+      ],
+      [
+        -0.7025711119859508,
+        -0.7112336820475629,
+        0.023248271417269706,
+        0.0394202891823076
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "rotation_quaternion_xyzw": {
+      "w": 0.6579499408322479,
+      "x": -0.2646744381656339,
+      "y": 0.6467791787566072,
+      "z": -0.2805815586731893
+    },
+    "translation": {
+      "x": -0.13501234680848043,
+      "y": -0.027382233580855064,
+      "z": 0.0394202891823076
+    }
+  },
+  "mode": "eye_in_hand",
+  "name": "right_wrist_new_table",
+  "residuals": {
+    "rotation_max_deg": 3.5666704422325815,
+    "rotation_mean_deg": 1.7945317053503282,
+    "translation_max_m": 0.018036792753168714,
+    "translation_mean_m": 0.01032765048087936
+  },
+  "sample_count": 15,
+  "samples_npz": "/home/piper/pika_ros/calibration/handeye/samples_right_wrist_new_table.npz",
+  "topics": {
+    "camera_info": "/gripper/camera_r/color/camera_info",
+    "image": "/gripper/camera_r/color/image_raw",
+    "robot_pose": "/piper_FK_r/urdf_end_pose_orient"
+  }
+}

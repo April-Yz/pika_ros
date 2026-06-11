@@ -84,6 +84,20 @@ python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
   50 \
   --output-dir /home/piper/agilex/processed_robotwin/pnp_star_pear-50
 
+python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
+  /home/piper/agilex/pnp_bread \
+  "Pick up two breads, then place them onto the blue plate." \
+  147 \
+  --output-dir /home/piper/agilex/processed_robotwin/pnp_bread-147
+
+处理筛选后的 good 目录：
+python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
+  /home/piper/agilex/pnp_bread \
+  "Pick up two breads, then place them onto the blue plate." \
+  147 \
+  --episode-subdir good \
+  --output-dir /home/piper/agilex/processed_robotwin/pnp_bread-good-147
+
 使用 sensor gripper：
 python /home/piper/pika_ros/scripts/process_data_robotwin_headcam.py \
   /home/piper/agilex/pnp_star_pear \
@@ -504,6 +518,12 @@ def main() -> None:
         help="Output directory. Default: processed_data/<task_name>-<expert_data_num>",
     )
     parser.add_argument(
+        "--episode-subdir",
+        type=str,
+        default=None,
+        help="Optional subdirectory under dataset_dir that contains episode* folders, e.g. good or good_trimmed_1cm.",
+    )
+    parser.add_argument(
         "--image-width",
         type=int,
         default=640,
@@ -529,17 +549,22 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    dataset_dir = Path(args.dataset_dir).expanduser().resolve()
+    dataset_root = Path(args.dataset_dir).expanduser().resolve()
+    dataset_dir = (dataset_root / args.episode_subdir).resolve() if args.episode_subdir else dataset_root
     if not dataset_dir.exists():
         raise FileNotFoundError(f"Dataset directory not found: {dataset_dir}")
 
-    task_name = dataset_dir.name
-    output_dir = Path(args.output_dir) if args.output_dir else Path("processed_data") / f"{task_name}-{args.expert_data_num}"
+    task_name = dataset_root.name if args.episode_subdir else dataset_dir.name
+    task_label = f"{task_name}-{args.episode_subdir}" if args.episode_subdir else task_name
+    output_dir = Path(args.output_dir) if args.output_dir else Path("processed_data") / f"{task_label}-{args.expert_data_num}"
     output_dir.mkdir(parents=True, exist_ok=True)
     audit_log_path = output_dir / "processing_audit.jsonl"
     comparison_log_path = output_dir / "gripper_comparison.json"
 
     print(f"read raw episodes from path: {dataset_dir}")
+    if args.episode_subdir:
+        print(f"dataset root: {dataset_root}")
+        print(f"episode subdir: {args.episode_subdir}")
     print(f"task name: {task_name}")
     print(f"instruction: {args.instruction}")
     print(f"headCam source directory: {HEAD_CAM_DIRNAME}")

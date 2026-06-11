@@ -62,6 +62,14 @@ def parse_args() -> argparse.Namespace:
         help="Task subdirectory under --dataset-root. Default: data",
     )
     parser.add_argument(
+        "--episode-subdir",
+        default=None,
+        help=(
+            "Optional episode subdirectory under the dataset root, such as unprocessed/good. "
+            "If omitted, the script auto-detects unprocessed first and otherwise falls back to the dataset root."
+        ),
+    )
+    parser.add_argument(
         "--output",
         default=None,
         help=(
@@ -115,8 +123,17 @@ def parse_args() -> argparse.Namespace:
 
 def resolve_dataset_dir(args: argparse.Namespace) -> str:
     if args.dataset_dir:
-        return os.path.expanduser(args.dataset_dir)
-    return os.path.expanduser(os.path.join(args.dataset_root, args.task_name))
+        base = Path(args.dataset_dir).expanduser()
+    else:
+        base = Path(os.path.expanduser(os.path.join(args.dataset_root, args.task_name)))
+
+    if args.episode_subdir:
+        return str(base / args.episode_subdir)
+
+    unprocessed = base / "unprocessed"
+    if unprocessed.is_dir():
+        return str(unprocessed)
+    return str(base)
 
 
 def resolve_episode_path(episode: str, dataset_dir: str) -> Path:
